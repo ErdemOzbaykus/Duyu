@@ -180,7 +180,10 @@ namespace Duyu
             _pages[_page].Tick();
             _out.Show(M.Meter(Duyu.M.OutL), M.Meter(Duyu.M.OutR));
 
-            if (M.On(P.MixerOn) && M.Meter(Duyu.M.MixerRunning) < 0.5f) _status.Text = "Çıkış açılamadı. Sesler Windows'a bırakıldı.";
+            var leak = M.Devices.Any(d => !d.Input && d.Default && d.Cable);
+            _status.Foreground = Kit.Brush(leak ? "Danger" : "Muted");
+            if (leak) _status.Text = "Windows varsayılan çıkışı sanal kabloda. Bazı sesleri duymazsın, mikrofonuna karışırlar. Ses ayarlarından kulaklığını varsayılan yap.";
+            else if (M.On(P.MixerOn) && M.Meter(Duyu.M.MixerRunning) < 0.5f) _status.Text = "Çıkış açılamadı. Sesler Windows'a bırakıldı.";
             else if (M.On(P.MixerOn)) _status.Text = (int)M.Meter(Duyu.M.Captured) + " uygulama işleniyor";
             else _status.Text = "Ses motoru kapalı";
         }

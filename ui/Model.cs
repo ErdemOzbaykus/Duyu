@@ -43,6 +43,16 @@ namespace Duyu
         public string Id, Name;
         public bool Input, Virtual, Default;
         public int Form, Rate;
+
+        // Same rule as sys::isCable in engine/system.h.
+        public bool Cable
+        {
+            get
+            {
+                var n = Name.ToLowerInvariant();
+                return n.Contains("vb-audio") && n.Contains("cable");
+            }
+        }
     }
 
     public enum AppState { Idle, Captured, Direct, Starting, SharedTree, Error }
@@ -505,14 +515,23 @@ namespace Duyu
             return text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Split('\t')).Where(c => c.Length == columns);
         }
 
+        /// Devices a role may use (see sys::route).
+        public IEnumerable<Device> Usable(Role role)
+        {
+            var cableAllowed = role == Role.OutMic || role == Role.OutStream;
+            return Devices.Where(d => d.Input == (role == Role.InMic) && (cableAllowed || !d.Cable));
+        }
+
         /// The device the engine uses for a role, including the automatic pick (see system.h).
         public Device Effective(Role role)
         {
             var input = role == Role.InMic;
-            var hit = Devices.FirstOrDefault(d => d.Input == input && d.Id == S.Devices[(int)role]);
+            var usable = Usable(role).ToList();
+            var hit = usable.FirstOrDefault(d => d.Id == S.Devices[(int)role]);
             if (hit != null) return hit;
+            if (role == Role.OutMic) return usable.FirstOrDefault(d => d.Cable && d.Name.ToLowerInvariant().Contains("input"));
             if (role != Role.OutMain && role != Role.InMic) return null;
-            return Devices.Where(d => d.Input == input).OrderByDescending(d => (d.Default ? 50 : 0) - (d.Virtual ? 100 : 0)
+            return usable.OrderByDescending(d => (d.Default ? 50 : 0) - (d.Virtual ? 100 : 0)
                 + (input ? 0 : d.Form == 3 || d.Form == 5 ? 30 : d.Form == 1 ? 20 : 0)).FirstOrDefault();
         }
 

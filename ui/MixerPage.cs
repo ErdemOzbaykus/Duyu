@@ -29,7 +29,7 @@ namespace Duyu
 
             var streamExtra = Kit.Stack(
                 B.Switch("Yayın miksini dinle", "Kulaklığında izleyicinin duyduğunu duyarsın.", P.StreamListen),
-                B.Device("Yayın miksi çıkışı", Role.OutStream, false, "Seçilmedi"));
+                B.Device("Yayın miksi çıkışı", Role.OutStream, "Seçilmedi"));
             var streamer = Kit.Card("Yayıncı modu", null,
                 B.Switch("İkinci, bağımsız miks", "Her kanalda yayın için ayrı bir sürgü açılır.", P.StreamerOn),
                 streamExtra);

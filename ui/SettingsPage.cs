@@ -21,11 +21,11 @@ namespace Duyu
             : base(host, "Ayarlar", "Aygıtlar, oyun profilleri, kısayollar ve güvenlik.")
         {
             var devices = Kit.Card("Ses çıkışları", "Bir kanalı ayrı aygıta yollayabilirsin, örneğin medyayı hoparlöre.",
-                B.Device("Ana çıkış (kulaklık)", Role.OutMain, false, "Otomatik"),
-                B.Device("Oyun", Role.OutGame, false, "Ana çıkış"),
-                B.Device("Sohbet", Role.OutChat, false, "Ana çıkış"),
-                B.Device("Medya", Role.OutMedia, false, "Ana çıkış"),
-                B.Device("Diğer", Role.OutAux, false, "Ana çıkış"));
+                B.Device("Ana çıkış (kulaklık)", Role.OutMain, "Otomatik"),
+                B.Device("Oyun", Role.OutGame, "Ana çıkış"),
+                B.Device("Sohbet", Role.OutChat, "Ana çıkış"),
+                B.Device("Medya", Role.OutMedia, "Ana çıkış"),
+                B.Device("Diğer", Role.OutAux, "Ana çıkış"));
 
             var profiles = Kit.Card("Oyun profilleri", "Oyun öne gelince ayarları yükler, oyun kapanınca geri alır.",
                 _profiles,

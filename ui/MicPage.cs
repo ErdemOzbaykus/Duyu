@@ -14,7 +14,7 @@ namespace Duyu
         {
             _test = Kit.Button("4 sn kaydet ve dinle", M.MicTest, null, "");
             var input = Kit.Card("Giriş", null,
-                B.Device("Mikrofon", Role.InMic, true, "Otomatik"),
+                B.Device("Mikrofon", Role.InMic, "Otomatik"),
                 Kit.Text("İşlenmiş seviye", 13, "Muted").Margin(0, 14, 0, 6),
                 _meter,
                 B.Slider("Kazanç", P.MicGain, -24, 24, 0.5, Format.Db, null, "Mic"),
@@ -22,9 +22,13 @@ namespace Duyu
                 _test.Margin(0, 14, 0, 4),
                 Kit.Text("Test kaydı yalnızca bellekte tutulur, diske yazılmaz.", 12, "Muted", true));
 
+            var hint = Kit.Text("", 13, null, true);
+            B.On(() => hint.Text = M.Effective(Role.OutMic) != null
+                ? "Otomatik bağlanır. Discord, OBS ve oyunda mikrofon olarak CABLE Output seç."
+                : "Başka uygulamaların bunu mikrofon olarak görmesi için bir sanal kablo sürücüsü (VB-CABLE) gerekir. Kurulunca Duyu kendiliğinden bağlanır. Duyu sürücü kurmaz.");
             var output = Kit.Card("Discord, OBS ve oyunlara gönder", null,
-                B.Device("İşlenmiş mikrofonun çıkışı", Role.OutMic, false, "Seçilmedi"),
-                Kit.Note(Kit.Text("Başka uygulamaların bunu mikrofon olarak görmesi için bir sanal kablo sürücüsü (ör. VB-CABLE) gerekir. Burada kablonun girişini, uygulamada çıkışını seç. Duyu sürücü kurmaz.", 13, null, true)));
+                B.Device("İşlenmiş mikrofonun çıkışı", Role.OutMic, "Otomatik"),
+                Kit.Note(hint));
 
             var cleanup = Kit.Card("Gürültü", "Yapay zeka değil, klasik sinyal işleme. Sabit gürültüde güçlü, ani ve karmaşık seste sınırlıdır.",
                 B.Slider("Arka plan gürültüsü", P.NsAmount, 0, 1, 0.02, Format.Percent, null, "Mic"),

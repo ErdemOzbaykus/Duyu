@@ -17,6 +17,14 @@ Gereken: Windows 11 x64 (veya Windows 10 build 20348+).
 
 Kısayollar: `Ctrl+Shift+F11` mikrofon, `F12` tüm ses, `F7/F8` ChatMix (hepsi Ctrl+Shift ile).
 
+## Mikrofonu Discord ve oyunlara ver
+
+1. [VB-CABLE](https://vb-audio.com/Cable/) kur ve yeniden başlat.
+2. Kurulum Windows varsayılan çıkışını kabloya çevirir: kulaklığını yeniden varsayılan çıkış yap. Duyu bu durumu kırmızı yazıyla bildirir.
+3. Discord, OBS veya oyunda mikrofon olarak `CABLE Output` seç.
+
+Duyu tarafında seçim gerekmez: mikrofon işleme açıkken kabloya kendiliğinden bağlanır, kabloyu kulaklık ya da mikrofon girişi olarak kullanmaz.
+
 ## iPhone ve iPad'den ayar
 
 1. PC: Ayarlar > **Telefon ve tablet** > Uzaktan ayar. Adres ve 6 haneli kod görünür.
@@ -45,7 +53,7 @@ Sayfalar: Kısayollar, Mikser, Ses, Mikrofon, Profiller. Profiller ve yıldızl�
 | Kanal başına çıkış aygıtı | Var | |
 | Mikrofon: EQ, kapı, kompresör, sabitleme, test | Var | |
 | Gürültü engelleme | Kısmen | klasik DSP, yapay zeka değil |
-| Sanal mikrofon | Yok | imzalı sürücü ister. Sanal kabloya çıkış verilebilir |
+| Sanal mikrofon | VB-CABLE ile | otomatik bağlanır. Duyu'nun kendi sürücüsü yok |
 | Topluluk ayar mağazası | Yok | sunucu ister |
 | Oyun profilleri, kısayollar, tepsi | Var | |
 | Kendini duy | Var | mikrofon zincirinden sonra |
@@ -93,6 +101,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
 ```
 
 - `tests/dsp_tests.cpp`: çevrimdışı DSP testleri.
+- `tests/routing_tests.cpp`: aygıt yönlendirme kuralları.
 - `tests/wheel_test.ps1`: sayfa kaydırmak seçim kutusunu değiştirmemeli.
 - `tests/e2e.cpp`: gerçek WASAPI testi, yalnızca kendi alt sürecine dokunur. Seçilen çıkışa -60 dBFS ton çalar.
 - `tests/latency.cpp`: uygulama yolu gecikme ölçümü.

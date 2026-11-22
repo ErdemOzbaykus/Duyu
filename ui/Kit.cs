@@ -351,7 +351,7 @@ namespace Duyu
             return Kit.Equal(items);
         }
 
-        public FrameworkElement Device(string label, Role role, bool input, string none)
+        public FrameworkElement Device(string label, Role role, string none)
         {
             var box = Kit.Named(new ComboBox(), label);
             var ids = new List<string>();
@@ -362,11 +362,11 @@ namespace Duyu
             };
             On(() =>
             {
-                var list = M.Devices.Where(d => d.Input == input).ToList();
-                var auto = role == Role.OutMain || role == Role.InMic;
+                var list = M.Usable(role).ToList();
+                var auto = role == Role.OutMain || role == Role.InMic || role == Role.OutMic;
                 var picked = M.Effective(role);
                 var first = none;
-                if (auto && picked != null && string.IsNullOrEmpty(M.S.Devices[(int)role])) first += " · " + picked.Name;
+                if (auto && picked != null && picked.Id != M.S.Devices[(int)role]) first += " · " + picked.Name;
                 var key = first + string.Join("|", list.Select(d => d.Id + d.Name));
                 if (key != shown)
                 {

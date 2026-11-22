@@ -226,12 +226,7 @@ private:
     void syncStreams(const std::vector<sys::Device>& devs) {
         std::wstring want[ROLES];
         { std::lock_guard lock(mu_); std::copy(std::begin(wanted_), std::end(wanted_), want); }
-        auto present = [&](const std::wstring& id, bool input) {
-            return std::any_of(devs.begin(), devs.end(), [&](auto& d) { return d.input == input && d.id == id; });
-        };
-        for (int r = 0; r < ROLES; r++) if (!want[r].empty() && !present(want[r], r >= InMic)) want[r].clear();
-        if (want[OutMain].empty()) want[OutMain] = sys::pickOutput(devs);
-        if (want[InMic].empty()) want[InMic] = sys::pickInput(devs);
+        sys::route(devs, want, state.on(MixerOn) && state.on(StreamerOn));
         if (quit_) for (auto& w : want) w.clear();
 
         const bool mixer = state.on(MixerOn), mic = state.on(MicOn);

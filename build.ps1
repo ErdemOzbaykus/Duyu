@@ -23,6 +23,8 @@ $native = @(
 if ($Test) {
     $native += 'cl /nologo /utf-8 /std:c++20 /EHsc /O2 /MT /DNOMINMAX ..\tests\dsp_tests.cpp /Fe:dsp_tests.exe || exit /b 1'
     $native += '"%~dp0dsp_tests.exe" || exit /b 1'
+    $native += 'cl /nologo /utf-8 /std:c++20 /EHsc /O2 /MT /DUNICODE /DNOMINMAX ..\tests\routing_tests.cpp /Fe:routing_tests.exe /link ole32.lib avrt.lib mmdevapi.lib propsys.lib uuid.lib runtimeobject.lib || exit /b 1'
+    $native += '"%~dp0routing_tests.exe" || exit /b 1'
 }
 Set-Content (Join-Path $build 'native.cmd') $native -Encoding Default
 & (Join-Path $build 'native.cmd')

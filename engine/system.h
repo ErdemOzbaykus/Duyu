@@ -1,6 +1,7 @@
 // Devices, processes, audio sessions and the crash-recovery journal.
 #pragma once
 #include "wasapi.h"
+#include "params.h"
 #include <tlhelp32.h>
 #include <algorithm>
 #include <cwctype>
@@ -76,6 +77,12 @@ inline std::vector<Device> listDevices() {
     return out;
 }
 
+// shortcut: only VB-Audio cables are recognised, add names here when another cable driver needs auto-routing.
+inline bool isCable(const Device& d) {
+    const auto n = lower(d.name);
+    return has(n, L"vb-audio") && has(n, L"cable");
+}
+
 inline std::wstring pickOutput(const std::vector<Device>& ds) {
     auto score = [](const Device& d) {
         int s = d.isDefault ? 50 : 0;
@@ -85,15 +92,34 @@ inline std::wstring pickOutput(const std::vector<Device>& ds) {
         return s;
     };
     const Device* best = nullptr;
-    for (auto& d : ds) if (!d.input && (!best || score(d) > score(*best))) best = &d;
+    for (auto& d : ds) if (!d.input && !isCable(d) && (!best || score(d) > score(*best))) best = &d;
     return best ? best->id : L"";
 }
 
 inline std::wstring pickInput(const std::vector<Device>& ds) {
     const Device* best = nullptr;
     auto score = [](const Device& d) { return (d.isDefault ? 50 : 0) - (d.isVirtual ? 100 : 0); };
-    for (auto& d : ds) if (d.input && (!best || score(d) > score(*best))) best = &d;
+    for (auto& d : ds) if (d.input && !isCable(d) && (!best || score(d) > score(*best))) best = &d;
     return best ? best->id : L"";
+}
+
+// Turns saved choices into the devices to open. A cable is the virtual microphone, so it may only
+// carry the processed mic or the stream mix: never the headphones, a channel or the mic input.
+inline void route(const std::vector<Device>& ds, std::wstring (&want)[param::ROLES], bool streamer) {
+    using namespace param;
+    for (int r = 0; r < ROLES; r++) {
+        const bool cableAllowed = r == OutMic || r == OutStream;
+        const bool usable = std::any_of(ds.begin(), ds.end(), [&](auto& d) {
+            return d.id == want[r] && d.input == (r >= InMic) && (cableAllowed || !isCable(d));
+        });
+        if (!usable) want[r].clear();
+    }
+    if (want[OutMain].empty()) want[OutMain] = pickOutput(ds);
+    if (want[InMic].empty()) want[InMic] = pickInput(ds);
+    if (want[OutMic].empty())
+        for (auto& d : ds)
+            if (!d.input && isCable(d) && has(lower(d.name), L"input")) { want[OutMic] = d.id; break; }
+    if (streamer && want[OutMic] == want[OutStream]) want[OutMic].clear(); // the stream mix already carries the mic
 }
 
 struct Processes {
