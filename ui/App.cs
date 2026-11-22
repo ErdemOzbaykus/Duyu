@@ -14,7 +14,7 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("Duyu")]
 [assembly: AssemblyProduct("Duyu")]
 [assembly: AssemblyDescription("Windows ses mikseri")]
-[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
 
 namespace Duyu
 {

@@ -91,7 +91,7 @@ Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca o
 - **Kendini duy gecikmesi:** 10 ms periyotlu kablosuz bir USB kulaklıkta PC içinde 23–36 ms ölçüldü (Windows giriş ve çıkış saatlerinin açılıştaki hizasına göre).
   Windows paylaşımlı modu bu sürücüde daha küçük periyot vermez. Kulaklığın radyo ve çevirici gecikmesi buna eklenir.
   Beklememek için bu yolda gürültü azaltma ve darbe bastırma yoktur, Discord'a giden seste vardır.
-  Mikrofon ve kulaklık ayrı aygıtsa saat farkı arada bir 10 ms'lik atlama yapabilir (denenmedi).
+  Mikrofon ve kulaklık ayrı aygıtsa gecikme saat farkıyla gezinir (ölçülen 21–30 ms) ve birkaç dakikada bir 10 ms'lik atlama olur.
 - WASAPI exclusive ve ASIO kullanan uygulamalar yakalanamaz.
 - Başka bir sesli uygulamayı başlatmış uygulama (ör. oyunu açan launcher) işlenmez, doğrudan çalar.
   Windows yakalamayı süreç ağacı olarak yaptığı için aksi halde ses iki kez duyulurdu. Oyunun kendisi işlenir.
