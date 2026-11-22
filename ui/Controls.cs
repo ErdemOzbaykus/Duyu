@@ -212,7 +212,6 @@ namespace Duyu
 
             var bands = _m.S.Bands[Channel];
             var enabled = _m.On(P.EqOn, Channel);
-            float lo = _m.Get(P.Bass, Channel), mid = _m.Get(P.Voice, Channel), hi = _m.Get(P.Treble, Channel);
             var line = new StreamGeometry();
             var area = new StreamGeometry();
             using (var a = line.Open())
@@ -223,13 +222,7 @@ namespace Duyu
                 for (var x = L; x <= w - R; x += 3)
                 {
                     var f = (float)F(x);
-                    double sum = 0; // pre-amp is a level, not part of the shape
-                    foreach (var band in bands)
-                        if (band[0] > 0.5f && (band[1] >= 3 || band[3] != 0))
-                            sum += Native.duyu_filter_db((int)band[1], band[2], band[3], band[4], f);
-                    if (lo != 0) sum += Native.duyu_filter_db(1, 120, lo, 0.707f, f);
-                    if (mid != 0) sum += Native.duyu_filter_db(0, 2200, mid, 0.8f, f);
-                    if (hi != 0) sum += Native.duyu_filter_db(2, 6500, hi, 0.707f, f);
+                    var sum = _m.CurveDb(Channel, f);
                     var p = new Point(x, Y(Math.Max(-Range, Math.Min(Range, sum))));
                     if (first) a.BeginFigure(p, false, false); else a.LineTo(p, true, true);
                     b.LineTo(p, false, false);

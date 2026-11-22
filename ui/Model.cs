@@ -33,6 +33,9 @@ namespace Duyu
         public bool CloseToTray { get; set; }
         public bool Resume { get; set; }
         public bool SeenMixerInfo { get; set; }
+        public float SidetoneBefore { get; set; }
+        public bool RemoteOn { get; set; }
+        public List<string> RemoteDevices { get; set; } // hashes of paired device keys
     }
 
     public sealed class Device
@@ -139,6 +142,7 @@ namespace Duyu
                 UserPresets = new List<Preset>(),
                 Favorites = new List<string>(),
                 Profiles = new List<Profile>(),
+                RemoteDevices = new List<string>(),
                 Hotkeys = (string[])HotkeyDefaults.Clone(),
                 CloseToTray = true,
                 Resume = true
@@ -160,6 +164,8 @@ namespace Duyu
             if (s.Hotkeys == null || s.Hotkeys.Length != HotkeyNames.Length) s.Hotkeys = d.Hotkeys;
             s.Assign = s.Assign ?? d.Assign;
             s.Favorites = s.Favorites ?? d.Favorites;
+            s.RemoteDevices = (s.RemoteDevices ?? d.RemoteDevices).Where(x => x != null).ToList();
+            if (!(s.SidetoneBefore > 0 && s.SidetoneBefore <= 1)) s.SidetoneBefore = 0;
             s.UserPresets = (s.UserPresets ?? d.UserPresets).Where(p => p != null && p.Name != null && Presets.Valid(p.Bands)).ToList();
             s.Profiles = (s.Profiles ?? d.Profiles).Where(p => p != null && p.Name != null && p.Values != null
                 && p.Bands != null && p.Bands.Length == Ch.Count && p.Bands.All(Presets.Valid)
@@ -214,7 +220,13 @@ namespace Duyu
             _save.Start();
         }
 
-        public void Export(string path) { File.WriteAllText(path, Json().Serialize(S), new UTF8Encoding(false)); }
+        public void Export(string path)
+        {
+            var copy = Json().Deserialize<Settings>(Json().Serialize(S));
+            copy.RemoteOn = false;
+            copy.RemoteDevices = new List<string>();
+            File.WriteAllText(path, Json().Serialize(copy), new UTF8Encoding(false));
+        }
 
         public void Import(string path)
         {
@@ -222,6 +234,9 @@ namespace Duyu
             // An imported file must not be able to switch a microphone on.
             foreach (var p in new[] { P.MixerOn, P.MicOn, P.SpatialTest })
                 incoming.Values[(int)p][0] = S.Values[(int)p][0];
+            // Nor may it pair a device or open the network port.
+            incoming.RemoteOn = S.RemoteOn;
+            incoming.RemoteDevices = S.RemoteDevices;
             S = incoming;
             PushAll();
             Touch();
@@ -247,6 +262,35 @@ namespace Duyu
         }
 
         public void Toggle(P p, int i = 0) { Set(p, On(p, i) ? 0 : 1, i); }
+
+        public const float MixStep = 0.1f;
+
+        public void NudgeMix(float by)
+        {
+            Set(P.ChatMixOn, 1);
+            Set(P.ChatMix, Math.Max(-1, Math.Min(1, Get(P.ChatMix) + by)));
+        }
+
+        public void ToggleSidetone()
+        {
+            var now = Get(P.Sidetone);
+            if (now > 0) S.SidetoneBefore = now;
+            Set(P.Sidetone, now > 0 ? 0 : S.SidetoneBefore > 0 ? S.SidetoneBefore : 0.25f);
+        }
+
+        /// EQ shape shown on the desktop graph and on the phone.
+        public double CurveDb(int ch, float hz)
+        {
+            double sum = 0; // pre-amp is a level, not part of the shape
+            foreach (var b in S.Bands[ch])
+                if (b[0] > 0.5f && (b[1] >= 3 || b[3] != 0))
+                    sum += Native.duyu_filter_db((int)b[1], b[2], b[3], b[4], hz);
+            float lo = Get(P.Bass, ch), mid = Get(P.Voice, ch), hi = Get(P.Treble, ch);
+            if (lo != 0) sum += Native.duyu_filter_db(1, 120, lo, 0.707f, hz);
+            if (mid != 0) sum += Native.duyu_filter_db(0, 2200, mid, 0.8f, hz);
+            if (hi != 0) sum += Native.duyu_filter_db(2, 6500, hi, 0.707f, hz);
+            return sum;
+        }
 
         public void SetBand(int ch, int band, float[] v)
         {

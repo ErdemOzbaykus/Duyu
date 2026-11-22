@@ -71,7 +71,7 @@ $sources = Get-ChildItem (Join-Path $root 'ui') -Filter *.cs | ForEach-Object Fu
 & "$vs\MSBuild\Current\Bin\Roslyn\csc.exe" /nologo /noconfig /nostdlib /langversion:7.3 /target:winexe /platform:x64 `
     /optimize /codepage:65001 /warn:4 /nowarn:1701,1702 `
     "/out:$dist\Duyu.exe" "/win32icon:$ico" "/win32manifest:$root\app.manifest" `
-    "/resource:$root\ui\Theme.xaml,Duyu.Theme.xaml" $references $sources
+    "/resource:$root\ui\Theme.xaml,Duyu.Theme.xaml" "/resource:$root\ui\remote.html,Duyu.remote.html" $references $sources
 if ($LASTEXITCODE -ne 0) { throw 'UI derleme basarisiz.' }
 
 Copy-Item (Join-Path $build 'Duyu.Engine.dll'), $ico $dist -Force

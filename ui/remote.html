@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Duyu">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#101314">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="icon" href="/icon.png">
+<title>Duyu</title>
+<style nonce="__NONCE__">
+:root {
+  --bg: #101314; --rail: #0B0E0F; --surface: #181D1E; --raised: #232A2B; --hover: #2C3536;
+  --line: #2B3334; --edge: #697877; --text: #EFF3F1; --muted: #A3B0AE; --accent: #FFB067;
+  --on: #1A120A; --danger: #FF7A70; --good: #86D6A9;
+  --game: #F08A78; --chat: #93BCF8; --media: #E3CC70; --aux: #BFA3EE; --mic: #86D6A9; --master: #D6DEDB;
+  --top: env(safe-area-inset-top, 0px); --bottom: env(safe-area-inset-bottom, 0px);
+  --left: env(safe-area-inset-left, 0px); --right: env(safe-area-inset-right, 0px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--text); font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overscroll-behavior-y: none; }
+button, input, select { font: inherit; color: inherit; margin: 0; }
+button, label, select { touch-action: manipulation; }
+button { border: 0; background: var(--raised); border-radius: 12px; min-height: 44px; min-width: 44px; padding: 8px 14px; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button:active:not(:disabled) { filter: brightness(1.35); }
+:disabled { opacity: .45; cursor: default; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 28px; line-height: 1.15; }
+h2 { font-size: 18px; margin-bottom: 8px; }
+.small { font-size: 13px; color: var(--muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+main { padding: calc(var(--top) + 16px) calc(var(--right) + 16px) calc(var(--bottom) + 92px) calc(var(--left) + 16px); }
+main > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+main > header h1:focus { outline: none; }
+#status { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); text-align: right; }
+#status::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--edge); }
+#status.live::before { background: var(--good); }
+#status.down { color: var(--danger); }
+#status.down::before { background: var(--danger); }
+
+nav { position: fixed; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; background: var(--rail); border-top: 1px solid var(--line);
+      padding: 4px calc(var(--right) + 2px) calc(var(--bottom) + 4px) calc(var(--left) + 2px); }
+nav button { flex: 1; min-width: 0; min-height: 54px; padding: 4px 0; background: none; color: var(--muted);
+             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; }
+nav button[aria-current] { color: var(--accent); }
+nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.card { background: var(--surface); border-radius: 18px; padding: 16px; margin-bottom: 14px; min-width: 0; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 14px; align-items: start; }
+.cols > * { min-width: 0; }
+.group { margin-bottom: 22px; }
+.group > h2 { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tiles.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tile { min-height: 96px; border-radius: 18px; padding: 13px; background: var(--surface); text-align: left;
+        display: flex; flex-direction: column; justify-content: space-between; gap: 8px; border: 1.5px solid var(--line); }
+.tile b { font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.tile .state { font-size: 13px; color: var(--muted); }
+.tile .pip { width: 26px; height: 5px; flex: none; border-radius: 3px; background: var(--c, var(--accent)); }
+.tile.on { background: var(--c, var(--accent)); border-color: transparent; color: var(--on); }
+.tile.on .state { color: var(--on); }
+.tile.on .pip { background: var(--on); }
+.tile:disabled { opacity: .55; }
+
+.row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.grow { flex: 1; min-width: 0; }
+.field { padding-top: 8px; }
+.head { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.head output { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+input[type=range] { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 44px; background: none; touch-action: pan-y; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--c, var(--accent)) var(--fill, 0%), var(--hover) var(--fill, 0%)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -12px; border: 0; border-radius: 15px; background: var(--text); }
+
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 4px 0; cursor: pointer; }
+.switch .small { display: block; }
+.switch input { -webkit-appearance: none; appearance: none; flex: none; position: relative; width: 52px; height: 32px; border-radius: 16px; background: var(--hover); border: 1px solid var(--edge); }
+.switch input::after { content: ""; position: absolute; left: 4px; top: 4px; width: 22px; height: 22px; border-radius: 11px; background: var(--muted); }
+.switch input:checked { background: var(--c, var(--accent)); border-color: transparent; }
+.switch input:checked::after { left: 24px; background: var(--on); }
+
+.seg { display: flex; gap: 4px; margin-bottom: 14px; }
+.seg button { flex: 1; min-width: 0; padding: 8px 2px; font-size: 14px; background: none; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.seg button[aria-pressed=true] { background: var(--hover); color: var(--text); border-bottom-color: var(--c, var(--accent)); }
+
+.mute { flex: none; padding: 8px 10px; font-size: 14px; min-width: 76px; }
+.mute[aria-pressed=true] { background: var(--danger); color: var(--on); }
+
+.strips { display: grid; gap: 10px; margin-bottom: 14px; }
+.strip { background: var(--surface); border-radius: 18px; padding: 12px 14px; min-width: 0;
+         display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+.strip .name b { display: block; }
+.strip .name::before { content: ""; display: block; width: 24px; height: 4px; border-radius: 2px; background: var(--c); margin-bottom: 6px; }
+.strip .mutes { display: flex; gap: 6px; }
+.strip .faders { grid-column: 1 / -1; min-width: 0; }
+.fader .head { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.meter { height: 5px; border-radius: 3px; background: var(--hover); overflow: hidden; margin-top: 8px; }
+.meter i { display: block; height: 100%; background: var(--c); transform-origin: left; transform: scaleX(0); }
+
+.app { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.app:last-child { border: 0; }
+.ellipsis { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+select, input[type=search], input[type=text] { min-height: 44px; width: 100%; font-size: 16px; border-radius: 12px; border: 1px solid var(--edge); background: var(--bg); padding: 8px 12px; }
+.app select { flex: none; width: 136px; }
+
+.plot { position: relative; height: 230px; border-radius: 14px; background: var(--bg); overflow: hidden; margin: 8px 0 10px; touch-action: pan-y; }
+.plot svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.plot .grid { stroke: var(--line); fill: none; vector-effect: non-scaling-stroke; }
+.plot .zero { stroke: var(--edge); fill: none; vector-effect: non-scaling-stroke; }
+.plot .curve { stroke: var(--c); stroke-width: 2.5; fill: none; vector-effect: non-scaling-stroke; }
+.plot .area { fill: var(--c); opacity: .12; }
+.plot .dim { opacity: .3; }
+.node { position: absolute; width: 32px; height: 32px; min-width: 0; min-height: 0; margin: -16px; padding: 0; border-radius: 16px;
+        border: 1.5px solid var(--c); background: var(--raised); font-size: 12px; touch-action: none; }
+.node.sel { background: var(--c); color: var(--on); }
+.node.off { border-color: var(--edge); }
+.tick { position: absolute; font-size: 11px; color: var(--muted); pointer-events: none; }
+.tick.x { bottom: 3px; transform: translateX(-50%); }
+.tick.y { left: 4px; transform: translateY(-50%); }
+.bands { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.bands button { padding: 4px 0; min-width: 0; }
+.bands button[aria-pressed=true] { background: var(--c); color: var(--on); }
+.divider { height: 1px; background: var(--line); margin: 14px 0 10px; }
+.preset { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; background: none; text-align: left; padding: 8px 4px; }
+.preset span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.preset[aria-pressed=true] span:first-child { color: var(--accent); }
+
+#toast { position: fixed; z-index: 4; left: 50%; bottom: calc(var(--bottom) + 80px); transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
+         background: var(--raised); border: 1px solid var(--edge); border-radius: 12px; padding: 10px 14px; pointer-events: none; }
+#toast:empty { border: 0; padding: 0; }
+#pair { position: fixed; z-index: 5; inset: 0; background: var(--bg); overflow: auto; padding: calc(var(--top) + 56px) 24px 24px; }
+#pair form { max-width: 360px; margin: 0 auto; display: grid; gap: 14px; }
+#pair img { width: 76px; height: 76px; border-radius: 18px; }
+#pin { font-size: 30px; text-align: center; letter-spacing: 8px; min-height: 64px; }
+#pairGo { background: var(--accent); color: var(--on); font-weight: 600; min-height: 52px; }
+#pairError { color: var(--danger); min-height: 22px; }
+
+/* Wide screens: side navigation. Covers iPad and a phone held sideways. */
+@media (min-width: 700px) {
+  main { margin-left: calc(var(--left) + 92px); padding: calc(var(--top) + 22px) calc(var(--right) + 20px) calc(var(--bottom) + 24px) 20px; }
+  nav { top: 0; right: auto; width: calc(var(--left) + 92px); flex-direction: column; justify-content: flex-start; gap: 4px;
+        border-top: 0; border-right: 1px solid var(--line); overflow-y: auto;
+        padding: calc(var(--top) + 14px) 4px calc(var(--bottom) + 8px) calc(var(--left) + 4px); }
+  nav button { flex: none; width: 100%; min-height: 62px; font-size: 12px; }
+  nav button[aria-current] { background: var(--raised); }
+  .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols.eq { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+  #toast { bottom: calc(var(--bottom) + 20px); }
+}
+@media (min-width: 700px) and (max-height: 430px) {
+  nav { gap: 0; padding-top: calc(var(--top) + 4px); }
+  nav button { min-height: 52px; }
+  .plot { height: 200px; }
+}
+/* Vertical faders need height as well as width. */
+@media (min-width: 740px) and (min-height: 540px) {
+  .tile { min-height: 110px; }
+  .strips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .strip { display: flex; flex-direction: column; justify-content: flex-start; padding: 14px 6px; text-align: center; }
+  .strip .name::before { margin: 0 auto 8px; }
+  .strip .name .small { min-height: 19px; }
+  .strip .faders { order: 2; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 0 6px; margin: 8px 0; }
+  .strip .mutes { order: 3; flex-wrap: wrap; justify-content: center; margin-top: auto; }
+  .fader { width: 62px; display: flex; flex-direction: column; align-items: center; }
+  .fader .head { flex-direction: column; align-items: center; gap: 0; margin: 0; }
+  .fader .travel { position: relative; width: 44px; height: 226px; }
+  .fader input[type=range] { position: absolute; left: -91px; top: 91px; width: 226px; transform: rotate(-90deg); touch-action: none; }
+  .strip .meter { flex-basis: 100%; margin: 12px 10px 0; }
+  .plot { height: 280px; }
+}
+@media (min-width: 1100px) and (min-height: 540px) {
+  .strips { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .strip .mute { min-width: 64px; padding: 8px 4px; font-size: 13px; }
+  .cols.eq { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header><h1 id="title" tabindex="-1">Kısayollar</h1><span id="status" role="status">Bağlanıyor</span></header>
+  <div id="view"></div>
+</main>
+<nav id="nav" aria-label="Bölümler"></nav>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="pair" role="dialog" aria-modal="true" aria-labelledby="pairTitle" hidden>
+  <form id="pairForm">
+    <img src="/icon.png" alt="">
+    <h1 id="pairTitle">Duyu'ya bağlan</h1>
+    <p class="small">PC'de Duyu &gt; Ayarlar &gt; Telefon ve tablet bölümündeki 6 haneli kodu gir.</p>
+    <label class="sr" for="pin">Eşleştirme kodu</label>
+    <input id="pin" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required>
+    <button id="pairGo" type="submit">Bağlan</button>
+    <p id="pairError" role="alert"></p>
+    <p class="small">İpucu: önce Paylaş &gt; Ana Ekrana Ekle, sonra simgeden açıp eşleştir.</p>
+  </form>
+</div>
+
+<script nonce="__NONCE__">
+'use strict';
+
+const CH = [
+  ['Oyun', '--game'], ['Sohbet', '--chat'], ['Medya', '--media'],
+  ['Diğer', '--aux'], ['Mikrofon', '--mic'], ['Kulaklık', '--master']
+];
+const [GAME, CHAT, MEDIA, AUX, MIC, MASTER] = [0, 1, 2, 3, 4, 5];
+const METER_MIC = 8, METER_OUT = 10, METER_REDUCTION = 14, APP_SHARED = 4;
+const APP_STATE = ['Motor kapalı', 'İşleniyor', "Windows'a bırakıldı", 'Bağlanıyor', 'Doğrudan çalıyor', 'Yakalanamadı'];
+const TYPES = ['Çan', 'Alçak raf', 'Yüksek raf', 'Alçak geçiren', 'Yüksek geçiren', 'Çentik'];
+const SVG = 'http://www.w3.org/2000/svg';
+
+const $ = id => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const pct = v => '%' + Math.round(v * 100);
+const db = v => (v > 0.049 ? '+' : '') + String(Math.round(v * 10) / 10).replace('.', ',') + ' dB';
+const hz = v => Math.round(v) >= 1000 ? String(Math.round(v / 10) / 100).replace('.', ',') + ' kHz' : Math.round(v) + ' Hz';
+
+let S = null;          // last state from the PC
+let binders = [];      // refresh functions of the visible page
+let meters = [];       // live level functions of the visible page
+let tab = 0, channel = GAME, favChannel = GAME, band = 5;
+let version = 0;       // bumped on every local write: older poll answers are dropped
+let sending = false, held = null, authed = true, polling = false, toastTimer = 0;
+const queue = new Map();
+
+// ---------------------------------------------------------------- network
+
+async function api(path, body) {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 4500);
+  try {
+    const res = await fetch(path, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: body === undefined ? { 'X-Duyu': '1' } : { 'X-Duyu': '1', 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: abort.signal
+    });
+    const data = await res.json();
+    if (res.ok) return data;
+    const error = new Error(data.error || 'İstek başarısız.');
+    error.status = res.status;
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function online(ok, text) {
+  const el = $('status');
+  el.classList.toggle('down', !ok);
+  el.classList.toggle('live', ok && !!S && S.running);
+  const label = text || (!ok ? "PC'ye ulaşılamıyor" : S && S.running ? S.captured + ' uygulama işleniyor' : 'Ses motoru kapalı');
+  if (el.textContent !== label) el.textContent = label;
+}
+
+function failed(error) {
+  if (error.status === 401) return showPair();
+  online(false, error.status === 503 ? error.message : null);
+}
+
+async function poll() {
+  if (!authed || polling || sending || queue.size || document.hidden) return;
+  polling = true;
+  const at = version;
+  try {
+    const next = await api('/api/state?ch=' + (tab === 3 ? MIC : channel));
+    if (at === version) {
+      const first = !S;
+      S = next;
+      online(true);
+      if (first) build(); else refresh();
+    }
+  } catch (error) {
+    failed(error);
+  } finally {
+    polling = false;
+  }
+}
+
+// One request in flight and the newest value per control, so a drag never backs up.
+function write(key, path, body) {
+  version++;
+  queue.set(key, [path, body]);
+  flush();
+}
+
+async function flush() {
+  if (sending) return;
+  sending = true;
+  while (queue.size) {
+    const [key, [path, body]] = queue.entries().next().value;
+    queue.delete(key);
+    try {
+      await api(path, body);
+    } catch (error) {
+      if (error.status === 401) { queue.clear(); showPair(); }
+      else if (error.status) toast(error.message);
+      else { queue.clear(); online(false); toast('Değişiklik gönderilemedi.'); }
+    }
+  }
+  sending = false;
+  version++;
+  poll();
+}
+
+function setValue(p, i, v) {
+  S.v[p][i] = v;
+  write(p + ':' + i, '/api/set', { p, i, v });
+  refresh();
+}
+
+const toggle = (p, i = 0) => setValue(p, i, isOn(p, i) ? 0 : 1);
+const isOn = (p, i = 0) => S.v[p][i] > 0.5;
+
+function action(path, body) {
+  write(path + ':' + (version + 1), path, body);
+}
+
+function applyPreset(ch, id) {
+  const name = S.presets[id].name;
+  S.names[ch] = name;
+  action('/api/preset', { ch, id, name });
+  toast(CH[ch][0] + ': ' + name);
+  refresh();
+}
+
+// ---------------------------------------------------------------- DOM helpers
+
+function el(tag, props, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') node.className = v;
+    else if (k === 'color') node.style.setProperty('--c', 'var(' + v + ')');
+    else if (k === 'click') node.addEventListener('click', v);
+    else node.setAttribute(k, v);
+  }
+  node.append(...kids.filter(Boolean)); // strings become text nodes, never markup
+  return node;
+}
+
+function svg(tag, props, parent) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(props)) node.setAttribute(k, v);
+  if (parent) parent.append(node);
+  return node;
+}
+
+function text(node, value) { if (node.textContent !== value) node.textContent = value; }
+function bind(fn) { binders.push(fn); fn(); }
+function refresh() { if (S) for (const fn of binders) fn(); }
+
+// Rebuild a list only when its content changes, otherwise focus and scroll would jump.
+function list(box, signature, render) {
+  let last = null;
+  bind(() => {
+    const now = JSON.stringify(signature());
+    if (now === last || box.contains(held) || (document.activeElement.tagName === 'SELECT' && box.contains(document.activeElement))) return;
+    last = now;
+    box.replaceChildren(...render());
+  });
+  return box;
+}
+
+function card(title, ...kids) {
+  return el('section', { class: 'card' }, title && el('h2', null, title), ...kids);
+}
+
+function group(title, ...kids) {
+  return el('section', { class: 'group' }, el('h2', null, title), ...kids);
+}
+
+function toast(message) {
+  $('toast').textContent = message;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 2600);
+}
+
+function slider(o) {
+  const out = el('output');
+  const input = el('input', { type: 'range', min: o.min, max: o.max, step: o.step, 'aria-label': o.aria || o.label });
+  if (o.color) input.style.setProperty('--c', 'var(' + o.color + ')');
+  const paint = v => {
+    const label = o.format(v);
+    text(out, label);
+    input.setAttribute('aria-valuetext', label);
+    input.style.setProperty('--fill', (v - o.min) / (o.max - o.min) * 100 + '%');
+  };
+  input.addEventListener('pointerdown', () => { held = input; });
+  input.addEventListener('input', () => { paint(Number(input.value)); o.set(Number(input.value)); });
+  bind(() => {
+    if (o.enabled) input.disabled = !o.enabled();
+    if (held === input) return; // never move a thumb that is under a finger
+    const v = o.get();
+    input.value = v;
+    paint(v);
+  });
+  const head = el('div', { class: 'head' }, el('span', { 'aria-hidden': 'true' }, o.label), out);
+  return o.fader
+    ? el('div', { class: 'fader' }, head, el('div', { class: 'travel' }, input))
+    : el('div', { class: 'field' }, head, input);
+}
+
+function param(label, p, min, max, step, format, o = {}) {
+  const i = o.i || (() => 0);
+  return slider({ label, min, max, step, format, ...o, get: () => S.v[p][i()], set: v => setValue(p, i(), v) });
+}
+
+function toggleRow(label, p, o = {}) {
+  const i = o.i || (() => 0);
+  const input = el('input', { type: 'checkbox', role: 'switch', 'aria-label': label });
+  if (o.color) input.style.setProperty('--c', 'var(' + o.color + ')');
+  input.addEventListener('change', () => setValue(p, i(), input.checked ? 1 : 0));
+  bind(() => {
+    input.checked = isOn(p, i());
+    if (o.enabled) input.disabled = !o.enabled();
+  });
+  return el('label', { class: 'switch' }, el('span', null, label, o.hint && el('span', { class: 'small' }, o.hint)), input);
+}
+
+function segments(label, items, get, set) {
+  const buttons = items.map(([name, color], i) => {
+    const b = el('button', { type: 'button', click: () => { set(i); refresh(); } }, name);
+    if (color) b.style.setProperty('--c', 'var(' + color + ')');
+    return b;
+  });
+  bind(() => buttons.forEach((b, i) => b.setAttribute('aria-pressed', String(get() === i))));
+  return el('div', { class: 'seg', role: 'group', 'aria-label': label }, ...buttons);
+}
+
+function tile(name, o) {
+  const state = el('span', { class: 'state' });
+  const b = el('button', { type: 'button', class: 'tile', color: o.color || '--accent', click: o.tap },
+    el('span', { class: 'pip' }), el('b', null, name), state);
+  bind(() => {
+    const on = o.on ? o.on() : false;
+    b.classList.toggle('on', on);
+    if (o.on) b.setAttribute('aria-pressed', String(on));
+    b.disabled = o.enabled ? !o.enabled() : false;
+    text(state, o.state ? o.state() : on ? 'Açık' : 'Kapalı');
+  });
+  return b;
+}
+
+function muteButton(caption, aria, p, i) {
+  const b = el('button', { type: 'button', class: 'mute', 'aria-label': aria, click: () => toggle(p, i) });
+  bind(() => {
+    b.setAttribute('aria-pressed', String(isOn(p, i)));
+    text(b, isOn(p, i) ? caption[1] : caption[0]);
+  });
+  return b;
+}
+
+function level(first, color) {
+  const fill = el('i');
+  meters.push(values => {
+    const peak = Math.max(values[first], values[first + 1], 1e-6);
+    fill.style.transform = 'scaleX(' + clamp((20 * Math.log10(peak) + 60) / 60, 0, 1) + ')';
+  });
+  return el('div', { class: 'meter', color, 'aria-hidden': 'true' }, fill);
+}
+
+// ---------------------------------------------------------------- pages
+
+function shortcutsPage() {
+  const muteTile = (name, color, p, i) => tile(name, {
+    color, on: () => isOn(p, i), tap: () => toggle(p, i), state: () => isOn(p, i) ? 'Susturuldu' : 'Ses açık'
+  });
+  const mutes = el('div', { class: 'tiles' },
+    muteTile('Mikrofon', '--danger', 'Mute', MIC),
+    muteTile('Tüm ses', '--danger', 'MasterMute', 0),
+    ...[GAME, CHAT, MEDIA, AUX].map(c => muteTile(CH[c][0], CH[c][1], 'Mute', c)));
+
+  const mixText = () => {
+    const v = isOn('ChatMixOn') ? S.v.ChatMix[0] : 0;
+    return Math.abs(v) < 0.03 ? 'Eşit' : (v < 0 ? 'Oyun +' : 'Sohbet +') + pct(Math.abs(v));
+  };
+  const nudge = dir => () => {
+    S.v.ChatMixOn[0] = 1;
+    S.v.ChatMix[0] = clamp(S.v.ChatMix[0] + dir * 0.1, -1, 1);
+    action('/api/nudge', { dir }); // relative, so quick taps must not be merged
+    refresh();
+  };
+  const balance = el('div', { class: 'tiles three' },
+    tile('Oyuna', { color: '--game', tap: nudge(-1), state: () => '◀ kaydır' }),
+    tile('Eşitle', { color: '--master', tap: () => setValue('ChatMix', 0, 0), state: mixText }),
+    tile('Sohbete', { color: '--chat', tap: nudge(1), state: () => 'kaydır ▶' }));
+
+  const switches = el('div', { class: 'tiles' },
+    tile('Ses motoru', {
+      color: '--good', on: () => isOn('MixerOn'), tap: () => toggle('MixerOn'),
+      enabled: () => isOn('MixerOn') || S.mixerAllowed,
+      state: () => isOn('MixerOn') ? 'Açık' : S.mixerAllowed ? 'Kapalı' : "İlk kez PC'de aç"
+    }),
+    tile('Uzamsal ses', { color: '--game', on: () => isOn('SpatialOn', GAME), tap: () => toggle('SpatialOn', GAME), state: () => isOn('SpatialOn', GAME) ? 'Oyunda açık' : 'Kapalı' }),
+    tile('Akıllı ses', { color: '--game', on: () => isOn('SmartOn', GAME), tap: () => toggle('SmartOn', GAME), state: () => isOn('SmartOn', GAME) ? 'Oyunda açık' : 'Kapalı' }),
+    tile('Sohbet temizleme', { color: '--chat', on: () => isOn('DenoiseOn', CHAT), tap: () => toggle('DenoiseOn', CHAT) }),
+    tile('Yayıncı modu', { on: () => isOn('StreamerOn'), tap: () => toggle('StreamerOn') }),
+    tile('Kendini duy', {
+      color: '--mic', on: () => S.v.Sidetone[0] > 0, enabled: () => isOn('MicOn'),
+      tap: () => {
+        S.v.Sidetone[0] = S.v.Sidetone[0] > 0 ? 0 : 0.25; // the PC answers with the remembered level
+        action('/api/sidetone', {});
+        refresh();
+      },
+      state: () => !isOn('MicOn') ? "Mikrofonu PC'den aç" : S.v.Sidetone[0] > 0 ? pct(S.v.Sidetone[0]) : 'Kapalı'
+    }));
+
+  const profiles = list(el('div', { class: 'tiles' }), () => S.profiles, () => S.profiles.length
+    ? S.profiles.map(p => el('button', { type: 'button', class: 'tile', click: () => applyProfile(p.name) },
+        el('span', { class: 'pip' }), el('b', null, p.name), el('span', { class: 'state' }, 'Profili uygula')))
+    : [el('p', { class: 'small' }, "PC'de kaydettiğin profiller burada düğme olur.")]);
+
+  const favList = () => S.presets.map((p, id) => ({ name: p.name, id }))
+    .filter((p, at, all) => S.favorites.includes(p.name) && all.findIndex(q => q.name === p.name) === at);
+  const favorites = list(el('div', { class: 'tiles' }), () => [favList(), favChannel, S.names[favChannel]], () => {
+    const items = favList();
+    if (!items.length) return [el('p', { class: 'small' }, "PC'de yıldızladığın hazır ayarlar burada düğme olur.")];
+    return items.map(p => el('button', {
+      type: 'button', color: CH[favChannel][1], class: 'tile' + (S.names[favChannel] === p.name ? ' on' : ''),
+      'aria-pressed': String(S.names[favChannel] === p.name), click: () => applyPreset(favChannel, p.id)
+    }, el('span', { class: 'pip' }), el('b', null, p.name), el('span', { class: 'state' }, CH[favChannel][0] + ' kanalına')));
+  });
+
+  return [
+    group('Sustur', mutes),
+    group('Oyun ve sohbet dengesi', balance),
+    group('Aç / kapat', switches),
+    group('Profillerim', profiles),
+    group('Favori ayarlar', segments('Ayarın uygulanacağı kanal', CH.slice(0, 4), () => favChannel, i => { favChannel = i; }), favorites)
+  ];
+}
+
+function mixerPage() {
+  const strips = [MASTER, GAME, CHAT, MEDIA, AUX, MIC].map(c => {
+    const master = c === MASTER, mic = c === MIC;
+    const name = master ? 'Ana' : CH[c][0], color = CH[c][1];
+    const main = param(mic ? 'Duy' : 'Sen', master ? 'MasterVol' : mic ? 'Sidetone' : 'Vol', 0, 1, 0.01, pct, {
+      fader: true, color, aria: mic ? 'Kendini duy' : name + ' sesi', i: master || mic ? null : () => c
+    });
+    const faders = el('div', { class: 'faders' }, main);
+    const mutes = el('div', { class: 'mutes' }, master
+      ? muteButton(['Sustur', 'Kapalı'], 'Tüm sesi sustur', 'MasterMute', 0)
+      : muteButton(['Sustur', 'Kapalı'], name + ': sustur', 'Mute', c));
+    if (!master) {
+      const stream = param('Yayın', 'StreamVol', 0, 1, 0.01, pct, { fader: true, color: '--master', aria: name + ' yayın sesi', i: () => c });
+      const streamMute = muteButton(['Yayın', 'Yayın kapalı'], name + ': yayında sustur', 'StreamMute', c);
+      faders.append(stream);
+      mutes.append(streamMute);
+      bind(() => { stream.hidden = streamMute.hidden = !isOn('StreamerOn'); });
+    }
+    faders.append(level(master ? METER_OUT : c * 2, color));
+    return el('section', { class: 'strip', color, 'aria-label': name },
+      el('div', { class: 'name' }, el('b', null, name), el('span', { class: 'small' }, mic ? 'Kendini duy' : master ? 'Çıkış' : '')),
+      mutes, faders);
+  });
+
+  const balance = card('ChatMix',
+    toggleRow('Tek sürgüyle denge', 'ChatMixOn'),
+    param('Denge', 'ChatMix', -1, 1, 0.05,
+      v => Math.abs(v) < 0.03 ? 'Eşit' : (v < 0 ? 'Oyun +' : 'Sohbet +') + pct(Math.abs(v)),
+      { enabled: () => isOn('ChatMixOn'), aria: 'Oyun ile sohbet dengesi' }));
+  const streamer = card('Yayıncı modu',
+    toggleRow('İkinci, bağımsız miks', 'StreamerOn'),
+    toggleRow('Yayın miksini dinle', 'StreamListen', { enabled: () => isOn('StreamerOn') }));
+
+  const apps = list(el('div'), () => S.apps, () => S.apps.length ? S.apps.map(app => {
+    const name = app.exe.replace(/\.exe$/i, '');
+    const pick = el('select', { 'aria-label': name + ' kanalı' },
+      ...[0, 1, 2, 3, -1, -2].map(v => el('option', { value: v }, v >= 0 ? CH[v][0] : v === -1 ? "Windows'a bırak" : 'Otomatik')));
+    pick.value = String(app.ch);
+    pick.disabled = app.state === APP_SHARED;
+    pick.addEventListener('change', () => {
+      const ch = Number(pick.value);
+      pick.blur();
+      action('/api/assign', { exe: app.exe, ch });
+    });
+    return el('div', { class: 'row app' },
+      el('div', { class: 'grow' }, el('span', { class: 'ellipsis' }, name),
+        el('span', { class: 'small ellipsis' }, (app.active ? '● ' : '') + (APP_STATE[app.state] || ''))),
+      pick);
+  }) : [el('p', { class: 'small' }, 'Şu an ses açan uygulama yok.')]);
+
+  return [el('div', { class: 'strips' }, ...strips), el('div', { class: 'cols' }, balance, streamer), card('Uygulamalar', apps)];
+}
+
+function eqEditor(getCh) {
+  const X = f => Math.log(clamp(f, 20, 20000) / 20) / Math.log(1000) * 100;
+  const Y = gain => (18 - clamp(gain, -18, 18)) / 36 * 100;
+  const current = () => S.bands[getCh()][band];
+
+  function edit(fn) {
+    const c = getCh(), i = band, b = current().slice();
+    fn(b);
+    S.bands[c][i] = b;
+    S.names[c] = 'Özel';
+    write('band:' + c + ':' + i, '/api/band', {
+      ch: c, i, on: b[0] > 0.5 ? 1 : 0, type: clamp(Math.round(b[1]), 0, 5),
+      f: clamp(b[2], 10, 22000), gain: clamp(b[3], -18, 18), q: clamp(b[4], 0.1, 30)
+    });
+    refresh();
+  }
+
+  const art = svg('svg', { viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+  for (const g of [-12, -6, 6, 12]) svg('path', { class: 'grid', d: 'M0 ' + Y(g) + 'H100' }, art);
+  for (const f of [100, 1000, 10000]) svg('path', { class: 'grid', d: 'M' + X(f) + ' 0V100' }, art);
+  svg('path', { class: 'zero', d: 'M0 50H100' }, art);
+  const area = svg('path', { class: 'area' }, art);
+  const line = svg('path', { class: 'curve' }, art);
+  const plot = el('div', { class: 'plot' });
+  plot.append(art);
+  for (const [f, label] of [[100, '100'], [1000, '1k'], [10000, '10k']]) {
+    const t = el('span', { class: 'tick x', 'aria-hidden': 'true' }, label);
+    t.style.left = X(f) + '%';
+    plot.append(t);
+  }
+  for (const g of [12, -12]) {
+    const t = el('span', { class: 'tick y', 'aria-hidden': 'true' }, (g > 0 ? '+' : '') + g);
+    t.style.top = Y(g) + '%';
+    plot.append(t);
+  }
+
+  const position = i => {
+    const b = S.bands[getCh()][i];
+    return [clamp(X(b[2]), 3, 97), clamp(Y(b[1] >= 3 ? 0 : b[3]), 5, 95)];
+  };
+  const nodes = Array.from({ length: 10 }, (_, i) => {
+    const node = el('button', { type: 'button', class: 'node', tabindex: '-1', 'aria-hidden': 'true' }, String(i + 1));
+    node.addEventListener('pointerdown', down => {
+      down.preventDefault();
+      band = i;
+      held = node;
+      node.setPointerCapture(down.pointerId);
+      const x0 = down.clientX, y0 = down.clientY;
+      const [f0, g0] = [current()[2], current()[3]];
+      const box = plot.getBoundingClientRect();
+      let moved = false;
+      // Relative drag: touching a node must not make it jump to the fingertip.
+      const move = e => {
+        if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
+        moved = true;
+        edit(b => {
+          b[0] = 1;
+          b[2] = Math.round(clamp(f0 * Math.pow(1000, (e.clientX - x0) / box.width), 20, 20000));
+          if (b[1] < 3) b[3] = Math.round(clamp(g0 - (e.clientY - y0) / box.height * 36, -18, 18) * 2) / 2;
+        });
+      };
+      const up = () => {
+        node.removeEventListener('pointermove', move);
+        node.removeEventListener('pointerup', up);
+        node.removeEventListener('pointercancel', up);
+        held = null;
+      };
+      node.addEventListener('pointermove', move);
+      node.addEventListener('pointerup', up);
+      node.addEventListener('pointercancel', up);
+      refresh();
+    });
+    plot.append(node);
+    return node;
+  });
+
+  bind(() => {
+    const c = getCh(), color = 'var(' + CH[c][1] + ')';
+    plot.style.setProperty('--c', color);
+    chips.style.setProperty('--c', color);
+    if (S.curveCh === c) {
+      const points = S.curve.map((g, i) => (i / (S.curve.length - 1) * 100).toFixed(2) + ' ' + Y(g).toFixed(2));
+      line.setAttribute('d', 'M' + points.join('L'));
+      area.setAttribute('d', 'M0 50L' + points.join('L') + 'L100 50Z');
+    }
+    line.classList.toggle('dim', !isOn('EqOn', c));
+    nodes.forEach((node, i) => {
+      const [x, y] = position(i);
+      node.style.left = x + '%';
+      node.style.top = y + '%';
+      node.style.zIndex = i === band ? 2 : 1;
+      node.classList.toggle('sel', i === band);
+      node.classList.toggle('off', S.bands[c][i][0] < 0.5);
+      chipButtons[i].setAttribute('aria-pressed', String(i === band));
+    });
+  });
+
+  const name = el('h2', { class: 'grow ellipsis' });
+  bind(() => text(name, S.names[getCh()]));
+
+  const bandOn = el('input', { type: 'checkbox', role: 'switch', 'aria-label': 'Bant etkin' });
+  bandOn.addEventListener('change', () => edit(b => { b[0] = bandOn.checked ? 1 : 0; }));
+  const bandName = el('span');
+  const type = el('select', { 'aria-label': 'Filtre türü' }, ...TYPES.map((t, i) => el('option', { value: i }, t)));
+  type.addEventListener('change', () => { edit(b => { b[1] = Number(type.value); }); type.blur(); });
+  bind(() => {
+    bandOn.checked = current()[0] > 0.5;
+    text(bandName, 'Bant ' + (band + 1));
+    if (document.activeElement !== type) type.value = String(current()[1]);
+  });
+
+  const search = el('input', { type: 'search', 'aria-label': 'Hazır ayar ara', placeholder: 'Ara: adım, caz, yayıncı…' });
+  let all = false;
+  const fold = s => String(s).toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
+  const presets = list(el('div'), () => [S.presets, S.favorites, S.names[getCh()], getCh(), search.value, all], () => {
+    const c = getCh(), query = fold(search.value.trim());
+    const wanted = c === GAME ? 'Oyun' : c === CHAT ? 'Sohbet' : c === MIC ? 'Mikrofon' : c === MASTER ? 'Kulaklık' : 'Medya';
+    const rank = p => S.favorites.includes(p.name) ? 0 : p.group === 'Benim' ? 1 : p.group === wanted ? 2 : p.group === 'Genel' ? 3 : 4;
+    const hits = S.presets.map((p, id) => ({ name: p.name, group: p.group || '', id }))
+      .filter(p => !query || fold(p.name + ' ' + p.group).includes(query))
+      .sort((a, b) => rank(a) - rank(b) || a.id - b.id);
+    const shown = all || query ? hits : hits.slice(0, 10);
+    const rows = shown.map(p => el('button', {
+      type: 'button', class: 'preset', 'aria-pressed': String(S.names[c] === p.name), click: () => applyPreset(c, p.id)
+    }, el('span', null, (S.favorites.includes(p.name) ? '★ ' : '') + p.name), el('span', { class: 'small' }, p.group)));
+    if (!hits.length) rows.push(el('p', { class: 'small' }, 'Eşleşen ayar yok.'));
+    if (shown.length < hits.length) rows.push(el('button', { type: 'button', class: 'preset', click: () => { all = true; refresh(); } }, el('span', null, 'Tümünü göster (' + hits.length + ')')));
+    return rows;
+  });
+  search.addEventListener('input', refresh);
+
+  const editor = card(null,
+    el('div', { class: 'row' }, name),
+    toggleRow('EQ açık', 'EqOn', { i: getCh }),
+    plot,
+    chips,
+    el('label', { class: 'switch' }, bandName, bandOn),
+    type,
+    slider({ label: 'Frekans', min: 0, max: 1, step: 0.002, format: v => hz(20 * Math.pow(1000, v)), get: () => X(current()[2]) / 100, set: v => edit(b => { b[2] = Math.round(20 * Math.pow(1000, v)); }) }),
+    slider({ label: 'Kazanç', min: -18, max: 18, step: 0.5, format: db, enabled: () => current()[1] < 3, get: () => current()[3], set: v => edit(b => { b[3] = v; }) }),
+    slider({ label: 'Genişlik (Q)', min: 0.1, max: 12, step: 0.05, format: v => v.toFixed(2).replace('.', ','), get: () => current()[4], set: v => edit(b => { b[4] = v; }) }),
+    el('div', { class: 'divider' }),
+    param('Bas', 'Bass', -12, 12, 0.5, db, { i: getCh }),
+    param('Ses', 'Voice', -12, 12, 0.5, db, { i: getCh }),
+    param('Tiz', 'Treble', -12, 12, 0.5, db, { i: getCh }),
+    param('Ön kazanç', 'Preamp', -24, 12, 0.1, db, { i: getCh }));
+
+  return el('div', { class: 'cols eq' }, editor, card('Hazır ayarlar', search, presets));
+}
+
+// Band picker shared by the plot binder: the accessible alternative to dragging nodes.
+let chips, chipButtons;
+function makeChips() {
+  chipButtons = Array.from({ length: 10 }, (_, i) =>
+    el('button', { type: 'button', 'aria-label': 'Bant ' + (i + 1), click: () => { band = i; refresh(); } }, String(i + 1)));
+  chips = el('div', { class: 'bands', role: 'group', 'aria-label': 'Bant seç' }, ...chipButtons);
+}
+
+function soundPage() {
+  const tabs = [GAME, CHAT, MEDIA, AUX, MASTER];
+  const pick = segments('Kanal', tabs.map(c => CH[c]), () => tabs.indexOf(channel), i => { channel = tabs[i]; version++; poll(); });
+  makeChips();
+  const editor = eqEditor(() => channel);
+  const i = () => Math.min(channel, AUX); // the cards below are hidden for the headphone tab
+  const targets = [-26, -20, -16];
+  const perChannel = el('div', { class: 'cols' },
+    card('Uzamsal ses',
+      toggleRow('Bu kanalda açık', 'SpatialOn', { i }),
+      param('Performans ↔ Sinematik', 'Immersion', 0, 1, 0.05, pct, { i }),
+      param('Mesafe', 'Distance', 0, 1, 0.05, pct, { i })),
+    el('div', null,
+      card('Seviye',
+        param('Ses güçlendirme', 'Boost', 0, 12, 0.5, db, { i }),
+        toggleRow('Akıllı ses', 'SmartOn', { i, hint: 'Kısığı yükseltir, patlamayı indirir.' }),
+        segments('Akıllı ses hedefi', [['Sessiz'], ['Dengeli'], ['Yüksek']],
+          () => { const v = S.v.SmartTarget[i()]; return v < -23 ? 0 : v > -18 ? 2 : 1; },
+          n => setValue('SmartTarget', i(), targets[n])),
+        param('Akıllı ses gücü', 'SmartAmount', 0, 1, 0.05, pct, { i })),
+      card('Gelen ses temizleme',
+        toggleRow('Gürültü azaltma', 'DenoiseOn', { i }),
+        param('Güç', 'DenoiseAmount', 0, 1, 0.05, pct, { i }))));
+  const correction = card('Kulaklık düzeltmesi',
+    el('p', { class: 'small' }, 'Bu EQ kulaklığa giden her şeye en son uygulanır.'),
+    param('Güvenlik tavanı', 'Ceiling', -24, -0.5, 0.5, db));
+  bind(() => {
+    perChannel.hidden = channel === MASTER;
+    correction.hidden = channel !== MASTER;
+  });
+  return [pick, editor, perChannel, correction];
+}
+
+function micPage() {
+  const color = '--mic';
+  const reduction = el('p', { class: 'small' });
+  meters.push(v => text(reduction, isOn('CompOn') ? 'Azaltma: ' + v[METER_REDUCTION].toFixed(1).replace('.', ',') + ' dB' : ''));
+  const muted = el('div', { class: 'group' }, tile('Mikrofon', {
+    color: '--danger', on: () => isOn('Mute', MIC), tap: () => toggle('Mute', MIC),
+    state: () => isOn('Mute', MIC) ? 'Susturuldu. Açmak için dokun' : 'Açık. Susturmak için dokun'
+  }));
+  muted.firstChild.style.width = '100%';
+
+  const input = card('Giriş',
+    toggleRow('Mikrofon işleme', 'MicOn', { color, enabled: () => isOn('MicOn'), hint: "Buradan kapanır, yalnızca PC'den açılır." }),
+    level(METER_MIC, color),
+    param('Kazanç', 'MicGain', -24, 24, 0.5, db, { color }),
+    param('Kendini duy', 'Sidetone', 0, 1, 0.01, pct, { color }));
+  const noise = card('Gürültü',
+    param('Arka plan gürültüsü', 'NsAmount', 0, 1, 0.02, pct, { color }),
+    param('Darbe sesleri (tuş, tık)', 'ImpactAmount', 0, 1, 0.02, pct, { color }));
+  const gate = card('Gürültü kapısı',
+    toggleRow('Kapı', 'GateOn', { color, hint: 'Susunca oda sesi de kesilir.' }),
+    toggleRow('Otomatik eşik', 'GateAuto', { color }),
+    param('Eşik', 'GateThreshold', -70, -15, 1, db, { color, enabled: () => !isOn('GateAuto') }));
+  const dynamics = card('Dinamik',
+    toggleRow('Kompresör', 'CompOn', { color }),
+    param('Sıkıştırma', 'CompAmount', 0, 1, 0.02, pct, { color }),
+    reduction,
+    toggleRow('Ses sabitleme', 'StabilizerOn', { color }));
+  makeChips();
+  return [muted, el('div', { class: 'cols' }, el('div', null, input, noise), el('div', null, gate, dynamics)), eqEditor(() => MIC)];
+}
+
+function applyProfile(name) {
+  action('/api/profile', { name });
+  toast('Profil: ' + name);
+}
+
+function profilesPage() {
+  const tiles = list(el('div', { class: 'tiles' }), () => S.profiles, () => S.profiles.length
+    ? S.profiles.map(p => el('button', { type: 'button', class: 'tile', click: () => applyProfile(p.name) },
+        el('span', { class: 'pip' }), el('b', null, p.name), el('span', { class: 'state ellipsis' }, p.exe || 'Elle')))
+    : [el('p', { class: 'small' }, "Henüz profil yok. PC'de sesi ayarla, sonra Ayarlar > Oyun profilleri'nden kaydet.")]);
+  return [el('section', { class: 'group' }, el('p', { class: 'small' }, 'Dokununca hemen uygulanır. Mikrofon ayarların değişmez.')), tiles];
+}
+
+const PAGES = [
+  ['Kısayollar', shortcutsPage, 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+  ['Mikser', mixerPage, 'M6 4v16M12 4v16M18 4v16M4 15h4M10 8h4M16 13h4'],
+  ['Ses', soundPage, 'M3 15c3 0 3-7 6-7s3 9 6 9 3-5 6-5'],
+  ['Mikrofon', micPage, 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11v1a6 6 0 0 0 12 0v-1M12 18v3'],
+  ['Profiller', profilesPage, 'M7 4h10v16l-5-4-5 4z']
+];
+
+function build() {
+  binders = [];
+  meters = [];
+  held = null;
+  text($('title'), PAGES[tab][0]);
+  $('view').replaceChildren(...(S ? PAGES[tab][1]() : [el('p', { class: 'small' }, 'Duyu aranıyor…')]));
+}
+
+function go(i) {
+  tab = i;
+  [...$('nav').children].forEach((b, n) => { if (n === i) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  build();
+  scrollTo(0, 0);
+  $('title').focus({ preventScroll: true });
+  version++;
+  poll();
+}
+
+// ---------------------------------------------------------------- start
+
+PAGES.forEach(([name, , icon], i) => {
+  const picture = svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' });
+  svg('path', { d: icon }, picture);
+  const b = el('button', { type: 'button', click: () => go(i) });
+  b.append(picture, name);
+  if (i === 0) b.setAttribute('aria-current', 'page');
+  $('nav').append(b);
+});
+
+function showPair() {
+  authed = false;
+  $('pair').hidden = false;
+  document.querySelector('main').inert = true;
+  $('nav').inert = true;
+  online(false, 'Eşleştirme gerekli');
+}
+
+$('pairForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  $('pairGo').disabled = true;
+  $('pairError').textContent = '';
+  try {
+    await api('/api/pair', { pin: $('pin').value.replace(/\D/g, '') });
+    authed = true;
+    $('pin').value = '';
+    $('pin').blur();
+    $('pair').hidden = true;
+    document.querySelector('main').inert = false;
+    $('nav').inert = false;
+    poll();
+  } catch (error) {
+    $('pairError').textContent = error.status ? error.message : "PC'ye ulaşılamıyor.";
+  } finally {
+    $('pairGo').disabled = false;
+  }
+});
+
+const release = () => { if (held) setTimeout(() => { held = null; }, 150); };
+addEventListener('pointerup', release);
+addEventListener('pointercancel', release);
+addEventListener('touchstart', () => {}, { passive: true }); // iOS shows :active only with this
+document.addEventListener('visibilitychange', () => { held = null; poll(); });
+addEventListener('pageshow', poll);
+
+const still = matchMedia('(prefers-reduced-motion: reduce)');
+let metering = false;
+setInterval(async () => {
+  if (!meters.length || !authed || !S || metering || document.hidden) return;
+  metering = true;
+  try {
+    const { levels } = await api('/api/meters');
+    for (const fn of meters) fn(levels);
+  } catch (error) {
+    failed(error);
+  } finally {
+    metering = false;
+  }
+}, still.matches ? 1000 : 250);
+
+setInterval(poll, 900);
+build();
+poll();
+</script>
+</body>
+</html>

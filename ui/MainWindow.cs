@@ -19,6 +19,7 @@ namespace Duyu
         private static readonly string[] NavIcons = { "", "", "", "" };
 
         public readonly Model M;
+        public Remote Remote; // null in preview
 
         private readonly Page[] _pages = new Page[4];
         private readonly RadioButton[] _nav = new RadioButton[4];
@@ -214,15 +215,9 @@ namespace Duyu
             {
                 case 0: M.Toggle(P.Mute, Ch.Mic); break;
                 case 1: M.Toggle(P.MasterMute); break;
-                case 2: NudgeMix(-0.1f); break;
-                case 3: NudgeMix(0.1f); break;
+                case 2: M.NudgeMix(-Model.MixStep); break;
+                case 3: M.NudgeMix(Model.MixStep); break;
             }
-        }
-
-        private void NudgeMix(float by)
-        {
-            M.Set(P.ChatMixOn, 1);
-            M.Set(P.ChatMix, Math.Max(-1, Math.Min(1, M.Get(P.ChatMix) + by)));
         }
 
         // ------------------------------------------------------------ window, hotkeys, tray

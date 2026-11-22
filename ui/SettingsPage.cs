@@ -12,6 +12,10 @@ namespace Duyu
     {
         private readonly StackPanel _profiles = new StackPanel();
         private readonly TextBlock _health = Kit.Text("", 13, "Muted", true);
+        private readonly TextBlock _remoteUrl = Kit.Title("", 17);
+        private readonly TextBlock _remotePin = Kit.Title("", 34);
+        private readonly TextBlock _remoteInfo = Kit.Text("", 13, "Muted", true);
+        private StackPanel _remoteDetails;
 
         public SettingsPage(MainWindow host)
             : base(host, "Ayarlar", "Aygıtlar, oyun profilleri, kısayollar ve güvenlik.")
@@ -45,7 +49,55 @@ namespace Duyu
 
             Add(new Columns().With(
                 Kit.Stack(devices.Margin(0, 0, 0, 16), general.Margin(0, 0, 0, 16), safety),
-                Kit.Stack(profiles.Margin(0, 0, 0, 16), keys)));
+                Kit.Stack(RemoteCard().Margin(0, 0, 0, 16), profiles.Margin(0, 0, 0, 16), keys)));
+        }
+
+        private Border RemoteCard()
+        {
+            var enabled = B.Switch("Uzaktan ayar", "Yalnızca kendi Tailscale ağından erişilir. Ses gönderilmez.",
+                () => M.S.RemoteOn, v => { if (Host.Remote != null) Host.Remote.SetEnabled(v); });
+            _remoteUrl.TextWrapping = TextWrapping.Wrap;
+            AutomationProperties.SetName(_remotePin, "Eşleştirme kodu");
+            _remoteDetails = Kit.Stack(
+                Kit.Text("Safari'de aç, Paylaş > Ana Ekrana Ekle, sonra simgeden açıp kodu gir.", 13, "Muted", true).Margin(0, 10, 0, 8),
+                _remoteUrl,
+                _remotePin.Margin(0, 8, 0, 0),
+                _remoteInfo.Margin(0, 0, 0, 10),
+                Kit.Wrap(
+                    Kit.Button("Yeni kod", () => Host.Remote.NewPin(), null, "\uE72C"),
+                    Kit.Button("Adresi kopyala", CopyAddress, null, "\uE8C8"),
+                    Kit.Button("Tüm cihazların bağlantısını kes", Revoke, "Quiet")));
+            return Kit.Card("Telefon ve tablet", "iPhone ve iPad'den ayar yap.", enabled, _remoteDetails);
+        }
+
+        private void CopyAddress()
+        {
+            var url = Host.Remote.Url;
+            if (url == null) return;
+            try { Clipboard.SetText(url); Host.Toast("Adres kopyalandı."); }
+            catch (System.Runtime.InteropServices.COMException) { Host.Toast("Pano meşgul, tekrar dene."); }
+        }
+
+        private void Revoke()
+        {
+            if (Dialog.Confirm(Host, "Cihazların bağlantısını kes", "Tüm telefon ve tabletler yeniden kod ister.", "Bağlantıyı kes"))
+                Host.Remote.RevokeAll();
+        }
+
+        private void TickRemote()
+        {
+            var r = Host.Remote;
+            var show = r != null && M.S.RemoteOn;
+            _remoteDetails.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (!show) return;
+            _remoteUrl.Text = r.Url ?? "";
+            var pin = r.Url == null ? null : r.Pin;
+            _remotePin.Text = pin == null ? "" : pin.Substring(0, 3) + " " + pin.Substring(3);
+            _remotePin.Visibility = pin == null ? Visibility.Collapsed : Visibility.Visible;
+            var seconds = r.PinSeconds;
+            _remoteInfo.Text = r.Error
+                ?? (pin != null ? "Kod " + seconds / 60 + ":" + (seconds % 60).ToString("00") + " daha geçerli. " : "Cihaz eklemek için yeni kod al. ")
+                   + M.S.RemoteDevices.Count + " eşleşme kayıtlı.";
         }
 
         private DockPanel HotkeyRow(int i)
@@ -139,6 +191,7 @@ namespace Duyu
 
         public override void Tick()
         {
+            TickRemote();
             var pending = (int)M.Meter(Duyu.M.Pending);
             var trips = (int)M.Meter(Duyu.M.GuardTrips);
             _health.Text = (pending == 0 ? "Onarım bekleyen ses yok." : pending + " ses oturumunun özgün seviyesi kayıtlı. Motor kapanınca geri verilir.")

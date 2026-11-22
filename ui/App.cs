@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading;
 using System.Windows;
@@ -45,6 +46,9 @@ namespace Duyu
             var smoke = Option(args, "--smoke"); // real engine in a throwaway folder: touches no other app
             if (smoke != null) return Smoke(smoke);
 
+            var remoteTest = Option(args, "--remote-test");
+            if (remoteTest != null) return RemoteTest(remoteTest, int.Parse(Option(args, "--port") ?? "47801"), args.Contains("--worst"));
+
             return Run(args.Contains("--preview"), args.Contains("--tray"));
         }
 
@@ -81,8 +85,9 @@ namespace Duyu
                 }
 
                 using (model)
+                using (var remote = preview ? null : new Remote(model))
                 {
-                    var window = new MainWindow(model);
+                    var window = new MainWindow(model) { Remote = remote };
                     app.MainWindow = window;
                     app.DispatcherUnhandledException += (s, e) =>
                     {
@@ -91,7 +96,7 @@ namespace Duyu
                         e.Handled = true;
                     };
                     // Audio must be handed back before Windows signs the user out.
-                    app.SessionEnding += (s, e) => { window.Quit(); model.Dispose(); };
+                    app.SessionEnding += (s, e) => { if (remote != null) remote.Dispose(); window.Quit(); model.Dispose(); };
 
                     window.CreateTray();
                     window.RegisterHotkeys();
@@ -122,6 +127,70 @@ namespace Duyu
             t.Tick += (s, e) => { t.Stop(); frame.Continue = false; };
             t.Start();
             Dispatcher.PushFrame(frame);
+        }
+
+        /// Demo model, real server on loopback. The test drives the desktop side through files in `dir`:
+        /// write cmd.txt, wait for it to disappear, read out.txt.
+        private static int RemoteTest(string dir, int port, bool worst)
+        {
+            Directory.CreateDirectory(dir);
+            Demo.WorstCase = worst;
+            var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            using (var model = new Model(dir, true, false))
+            {
+                model.S.SeenMixerInfo = true;
+                model.S.RemoteOn = true;
+                model.S.Favorites.AddRange(new[] { "Adım sesleri", "Gece" });
+                model.SaveProfile(worst ? "Çok uzun isimli rekabetçi profil <img src=x onerror=alert(1)> 2026" : "CS2", "cs2.exe");
+                using (var remote = new Remote(model, IPAddress.Loopback, port))
+                {
+                    var w = new MainWindow(model)
+                    {
+                        Remote = remote, WindowStartupLocation = WindowStartupLocation.Manual,
+                        Left = -8000, Width = 1320, Height = 900, ShowActivated = false, ShowInTaskbar = false
+                    };
+                    w.Show();
+                    remote.NewPin();
+                    File.WriteAllText(Path.Combine(dir, "out.txt"), remote.Pin);
+                    var cmd = Path.Combine(dir, "cmd.txt");
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+                    timer.Tick += (s, e) =>
+                    {
+                        if (!File.Exists(cmd)) return;
+                        string[] c;
+                        try { c = File.ReadAllText(cmd).Split(' '); }
+                        catch (IOException) { return; } // still being written
+                        var result = "";
+                        switch (c[0])
+                        {
+                            case "pin": remote.NewPin(); result = remote.Pin; break;
+                            case "revoke": remote.RevokeAll(); break;
+                            case "enable": remote.SetEnabled(c[1] == "1"); result = remote.Pin ?? ""; break;
+                            case "seen": model.S.SeenMixerInfo = c[1] == "1"; break;
+                            case "set":
+                                model.Set((P)Enum.Parse(typeof(P), c[1]), float.Parse(c[3], System.Globalization.CultureInfo.InvariantCulture), int.Parse(c[2]));
+                                break;
+                            case "get":
+                                result = model.Get((P)Enum.Parse(typeof(P), c[1]), int.Parse(c[2])).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                break;
+                            case "devices": result = model.S.RemoteDevices.Count.ToString(); break;
+                            case "export": model.Export(Path.Combine(dir, "export.json")); break;
+                            case "import": model.Import(Path.Combine(dir, "import.json")); break;
+                            case "shot":
+                                w.Navigate(int.Parse(c[1]));
+                                Pump(300);
+                                Capture((FrameworkElement)w.Content, Path.Combine(dir, "desktop.png"));
+                                break;
+                            case "quit": w.Quit(); app.Shutdown(); break;
+                        }
+                        File.WriteAllText(Path.Combine(dir, "out.txt"), result);
+                        File.Delete(cmd);
+                    };
+                    timer.Start();
+                    app.Run();
+                }
+            }
+            return 0;
         }
 
         private static int Shots(string dir, bool worst)
