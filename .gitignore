@@ -1,0 +1,16 @@
+/build/
+/dist/
+/Duyu/
+/Duyu-*-win-x64/
+*.zip
+*.bundle
+*.exe
+*.dll
+*.obj
+*.pdb
+__pycache__/
+# personal app data
+settings.json
+*.journal
+error.log
+.claude/
