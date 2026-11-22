@@ -75,4 +75,8 @@ $sources = Get-ChildItem (Join-Path $root 'ui') -Filter *.cs | ForEach-Object Fu
 if ($LASTEXITCODE -ne 0) { throw 'UI derleme basarisiz.' }
 
 Copy-Item (Join-Path $build 'Duyu.Engine.dll'), $ico $dist -Force
+if ($Test) {
+    powershell -NoProfile -STA -ExecutionPolicy Bypass -File (Join-Path $root 'tests\wheel_test.ps1') -Exe "$dist\Duyu.exe"
+    if ($LASTEXITCODE -ne 0) { throw 'Arayuz testi basarisiz.' }
+}
 Write-Host "Hazir: dist\Duyu.exe"

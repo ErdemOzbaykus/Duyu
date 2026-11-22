@@ -39,6 +39,7 @@ namespace Duyu
 
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Duyu.Theme.xaml"))
                 Kit.Theme = (ResourceDictionary)XamlReader.Load(stream);
+            Kit.WheelScrollsPage();
 
             var shots = Option(args, "--shots");
             if (shots != null) return Shots(shots, args.Contains("--worst"));

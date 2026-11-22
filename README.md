@@ -93,6 +93,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
 ```
 
 - `tests/dsp_tests.cpp`: çevrimdışı DSP testleri.
+- `tests/wheel_test.ps1`: sayfa kaydırmak seçim kutusunu değiştirmemeli.
 - `tests/e2e.cpp`: gerçek WASAPI testi, yalnızca kendi alt sürecine dokunur. Seçilen çıkışa -60 dBFS ton çalar.
 - `tests/latency.cpp`: uygulama yolu gecikme ölçümü.
 - `python -I tests/remote_test.py dist/Duyu.exe`: mobil API ve güvenlik testleri, yalnızca loopback.

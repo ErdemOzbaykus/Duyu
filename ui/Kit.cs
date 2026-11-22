@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace Duyu
@@ -104,6 +105,20 @@ namespace Duyu
         public static Brush Brush(string key) { return (Brush)Theme[key]; }
         public static Style Style(string key) { return (Style)Theme[key]; }
         public static FontFamily Font(string key) { return (FontFamily)Theme[key]; }
+
+        /// WPF lets the wheel change a closed ComboBox that has focus, so scrolling a page rewrote device choices.
+        public static void WheelScrollsPage()
+        {
+            EventManager.RegisterClassHandler(typeof(ComboBox), UIElement.PreviewMouseWheelEvent, new MouseWheelEventHandler((s, e) =>
+            {
+                var box = (ComboBox)s;
+                if (box.IsDropDownOpen) return;
+                e.Handled = true;
+                var parent = VisualTreeHelper.GetParent(box) as UIElement;
+                if (parent != null)
+                    parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta) { RoutedEvent = UIElement.MouseWheelEvent });
+            }));
+        }
 
         public static T Named<T>(T e, string name) where T : DependencyObject
         {
