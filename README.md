@@ -1,16 +1,34 @@
 # Duyu
 
-Windows için oyuncu ses mikseri. Sürücü, hesap, internet ve yönetici izni gerektirmez.
+Windows için oyuncu ses mikseri. Sürücü, hesap, internet ve yönetici izni gerektirmez (telefondan ayar için Tailscale gerekir).
+
+![Mikser](screenshots/1-mikser.png)
+
+<img src="screenshots/mobil-iphone-kisayollar.jpg" alt="iPhone kısayollar sayfası" width="240"> <img src="screenshots/mobil-ipad-mikser.jpg" alt="iPad mikser sayfası" width="356">
 
 ## Çalıştır
 
-`dist\Duyu.exe`. Yanındaki `Duyu.Engine.dll` ile aynı klasörde kalmalı.
+Kaynaktan önce derle (aşağıda "Derle ve test et"), sonra `dist\Duyu.exe`. Yanındaki `Duyu.Engine.dll` ile aynı klasörde kalmalı.
 Gereken: Windows 11 x64 (veya Windows 10 build 20348+).
 
 1. **SteelSeries Sonar'ı ve benzeri mikserleri kapat**, Windows varsayılan çıkışını kulaklığın yap.
 2. **Mikser** sayfasında "Ses motoru"nu aç. Uygulamalar kanallara kendiliğinden dağılır.
 
 Kısayollar: `Ctrl+Shift+F11` mikrofon, `F12` tüm ses, `F7/F8` ChatMix (hepsi Ctrl+Shift ile).
+
+## iPhone ve iPad'den ayar
+
+1. PC: Ayarlar > **Telefon ve tablet** > Uzaktan ayar. Adres ve 6 haneli kod görünür.
+2. iPhone/iPad: Tailscale'i bağla, Safari'de adresi `http://` ile birlikte aç, Paylaş > Ana Ekrana Ekle.
+3. Simgeden aç, kodu gir. Kod 5 dakika geçerlidir, iki cihazı da aynı kodla ekleyebilirsin.
+
+Sayfalar: Kısayollar, Mikser, Ses, Mikrofon, Profiller. Profiller ve yıldızlı hazır ayarlar Kısayollar'da düğme olur.
+
+- Varsayılan kapalı. Yalnızca Tailscale adresini dinler, yalnızca tailnet'ten kabul eder, ses göndermez.
+- PC'de Duyu açık ve bilgisayar uyanık olmalı.
+- Telefondan mikrofon işleme açılamaz (kapanır), ses motoru ilk kez PC'de açılmalıdır.
+- Bağlanmıyorsa: telefonda Tailscale açık mı, PC'de adres görünüyor mu, Windows Güvenlik Duvarı'nda Duyu engelli mi?
+- Port sabit: 47800.
 
 ## Sonar ile karşılaştırma
 
@@ -76,6 +94,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
 - `tests/dsp_tests.cpp`: çevrimdışı DSP testleri.
 - `tests/e2e.cpp`: gerçek WASAPI testi, yalnızca kendi alt sürecine dokunur. Seçilen çıkışa -60 dBFS ton çalar.
 - `tests/latency.cpp`: uygulama yolu gecikme ölçümü.
+- `python -I tests/remote_test.py dist/Duyu.exe`: mobil API ve güvenlik testleri, yalnızca loopback.
 - `Duyu.exe --preview`: sesle ilgisiz arayüz önizlemesi.
 - `Duyu.exe --shots <klasör> [--worst]`: ekran görüntüleri.
 - `Duyu.exe --smoke <klasör>`: yalıtılmış duman testi.
@@ -87,3 +106,7 @@ engine/  C++20 motor: dsp.h, graph.h (sinyal akışı), wasapi.h, system.h, engi
 ui/      WPF (.NET Framework 4.8, Windows ile gelir)
 tests/
 ```
+
+---
+
+SteelSeries ve Sonar, sahiplerinin markalarıdır. Duyu bağımsız bir projedir, SteelSeries ile bağlantısı yoktur.
