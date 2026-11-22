@@ -81,12 +81,14 @@ struct MicChain {
     Compressor comp;
     Leveler level;
     Limiter limit;
+    InstantLimiter instant;
 
     MicChain() { rumble.c = Coef::make(HighPass, 70, 0, .707f); }
-    void run(State& s, float* a, int n) {
+    // live: what you hear of yourself. Only zero-delay stages, and no meters.
+    void run(State& s, float* a, int n, bool live = false) {
         rumble.stereo(a, n);
         const float ns = s.get(NsAmount), impact = s.get(ImpactAmount);
-        if (ns > 0 || impact > 0) denoise.run(a, n, ns, impact);
+        if (!live && (ns > 0 || impact > 0)) denoise.run(a, n, ns, impact);
         if (s.on(GateOn)) gate.run(a, n, s.get(GateThreshold), s.on(GateAuto));
         if (s.on(EqOn, Mic)) { s.loadEq(eq, Mic); eq.run(a, n); }
         float reduction = 0;
@@ -98,9 +100,32 @@ struct MicChain {
         if (s.on(StabilizerOn)) level.run(a, n, .8f, -20);
         const float g = db(s.get(MicGain) + s.get(Preamp, Mic)) * (s.on(Mute, Mic) ? 0.f : 1.f);
         for (int i = 0; i < 2 * n; i++) a[i] *= g;
+        if (live) { instant.run(a, n, .89f); return; }
         limit.run(a, n, .89f);
         s.meterStereo(MMicL, a, n);
         s.meter[MMicReduction].store(reduction);
+    }
+};
+
+// Sidetone. Runs on the microphone clock and must never add a sample of delay.
+struct MonitorChain {
+    MicChain mic;
+    Ramp side, master;
+    Equalizer correction;
+    InstantLimiter guard;
+
+    void run(State& s, float* a, int n) {
+        mic.run(s, a, n, true);
+        const bool listen = s.on(StreamerOn) && s.on(StreamListen); // the stream mix already has the mic
+        side.stereo(a, n, listen ? 0.f : s.get(Sidetone));
+        master.stereo(a, n, s.on(MasterMute) ? 0.f : s.get(MasterVol));
+        if (s.on(EqOn, Master)) {
+            s.loadEq(correction, Master);
+            correction.run(a, n);
+            const float g = db(s.get(Preamp, Master));
+            for (int i = 0; i < 2 * n; i++) a[i] *= g;
+        }
+        guard.run(a, n, db(s.get(Ceiling)));
     }
 };
 
@@ -116,7 +141,7 @@ struct Mixer {
         float own[4][2 * MAX_BLOCK];        // out
     };
     AppChannel channel[4];
-    Ramp personal[4], streamer[5], side, master;
+    Ramp personal[4], streamer[5], master;
     Equalizer correction;
     Limiter mainLimit, streamLimit, ownLimit[4];
     uint32_t rng = 22222;
@@ -165,12 +190,8 @@ struct Mixer {
             for (int i = 0; i < 2 * n; i++) io.stream[i] += tmp[i];
             streamLimit.run(io.stream, n, .89f);
         }
+        // Sidetone is not mixed here, this path is too slow for it: see MonitorChain.
         if (listen) std::memcpy(io.main, io.stream, sizeof(float) * 2 * n);
-        else {
-            std::memcpy(tmp, io.mic, sizeof(float) * 2 * n);
-            side.stereo(tmp, n, s.get(Sidetone));
-            for (int i = 0; i < 2 * n; i++) io.main[i] += tmp[i];
-        }
         master.stereo(io.main, n, masterGain);
         for (int i = 0; i < 2 * n; i++) io.main[i] += io.playback[i];
         if (s.on(EqOn, Master)) {

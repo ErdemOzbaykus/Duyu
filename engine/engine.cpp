@@ -75,7 +75,9 @@ public:
         case CompAmount: v = std::clamp(v, 0.f, 1.f); break;
         case ChatMix: v = std::clamp(v, -1.f, 1.f); break;
         }
+        const bool heard = state.get(Sidetone) > 0;
         state.set(id, i, v);
+        if (id == Sidetone && heard != (state.get(Sidetone) > 0)) SetEvent(wake_);
         if (id == MixerOn || id == MicOn || id == StreamerOn || id == SpatialTest) SetEvent(wake_);
     }
     void setBand(int ch, int i, float on, float type, float f, float gain, float q) {
@@ -121,6 +123,7 @@ private:
     graph::Mixer mixer_;
     graph::Mixer::Io io_{};
     graph::MicChain micChain_;
+    graph::MonitorChain monitorChain_;
     dsp::Fifo micMix_{2, 480, 2400}, micOut_{2, 480, 2400};
     dsp::Fifo streamOut_{2, 480, 2400};
     dsp::Fifo ownOut_[4]{{2, 480, 2400}, {2, 480, 2400}, {2, 480, 2400}, {2, 480, 2400}};
@@ -131,7 +134,7 @@ private:
     std::vector<float> recording_ = std::vector<float>(2 * 48000 * 4);
     std::atomic<int> test_{TestIdle}, testAt_{0};
 
-    wasapi::Stream main_, streamSink_, micSink_, ownSink_[4], micIn_;
+    wasapi::Stream main_, streamSink_, micSink_, ownSink_[4], micIn_, monitor_;
     std::map<wasapi::Stream*, ULONGLONG> retryAt_;
 
     // ---------------------------------------------------------- audio threads
@@ -253,6 +256,10 @@ private:
         ensure(micIn_, micId, [&] {
             micMix_.clear = true;
             micIn_.captureDevice(micId, [this](float* a, int n) { onMic(a, n); });
+        });
+        const bool hear = mic && state.get(Sidetone) > 0 && !micId.empty() && !out.empty();
+        ensure(monitor_, hear ? micId + L'|' + out : L"", [&] {
+            monitor_.monitor(micId, out, [this](float* a, int n) { monitorChain_.run(state, a, n); });
         });
         const auto micOut = mic && want[OutMic] != out ? want[OutMic] : L"";
         ensure(micSink_, micOut, [&] {

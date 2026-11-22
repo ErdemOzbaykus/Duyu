@@ -146,6 +146,23 @@ private:
     float target = 1;
 };
 
+// Peak guard without look-ahead, for the path where every millisecond is audible.
+struct InstantLimiter {
+    float g = 1;
+
+    void run(float* a, int n, float ceiling) {
+        const float release = smooth(90);
+        for (int i = 0; i < n; i++) {
+            float &l = a[2 * i], &r = a[2 * i + 1];
+            l = finite(l); r = finite(r);
+            const float p = std::max(std::fabs(l), std::fabs(r));
+            g = std::min(g + (1 - g) * release, p > ceiling ? ceiling / p : 1.f);
+            l = std::clamp(l * g, -ceiling, ceiling);
+            r = std::clamp(r * g, -ceiling, ceiling);
+        }
+    }
+};
+
 struct Compressor {
     float env = 0, reduction = 0;
 

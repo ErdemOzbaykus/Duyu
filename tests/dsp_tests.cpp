@@ -171,7 +171,7 @@ static void mixer() {
         for (float& v : io->mic) v = .2f;
         m->run(*s, *io, 480); main = io->main[800];
     }
-    check(std::fabs(main - .05) < .001, "sidetone reaches the headphones", main);
+    check(std::fabs(main) < .001, "slow path carries no second copy of the sidetone", main);
 
     for (int c = 0; c < 4; c++) {
         s->set(SpatialOn, c, 1); s->set(DenoiseOn, c, 1); s->set(SmartOn, c, 1); s->set(Boost, c, 6);
@@ -187,8 +187,46 @@ static void mixer() {
     check(ms < 2.5, "everything on: ms per 10 ms block", ms);
 }
 
+static void sidetone() {
+    auto s = std::make_unique<graph::State>();
+    s->set(Sidetone, 0, .25f);
+    // Everything that delays the processed microphone is on.
+    for (int id : {NsAmount, ImpactAmount, CompOn, StabilizerOn}) s->set(id, 0, 1);
+    // Two identical runs, one with a click: it must come out on the sample it went in.
+    auto a = std::make_unique<graph::MonitorChain>(), b = std::make_unique<graph::MonitorChain>();
+    float x[960], y[960];
+    for (int k = 0; k < 100; k++) {
+        for (int i = 0; i < 480; i++) x[2 * i] = x[2 * i + 1] = y[2 * i] = y[2 * i + 1] = .05f * std::sin(.13f * float(i + 480 * k));
+        if (k == 99) { y[400] += .01f; y[401] += .01f; }
+        a->run(*s, x, 480); b->run(*s, y, 480);
+    }
+    check(std::fabs(x[400] - y[400]) > 1e-4, "sidetone adds zero samples of delay", std::fabs(x[400] - y[400]));
+
+    auto level = [&](auto change) {
+        auto t = std::make_unique<graph::State>(); auto m = std::make_unique<graph::MonitorChain>();
+        t->set(Sidetone, 0, 1); change(*t);
+        float top = 0, z[960];
+        for (int k = 0; k < 100; k++) {
+            for (int i = 0; i < 480; i++) z[2 * i] = z[2 * i + 1] = .9f * std::sin(.13f * float(i + 480 * k));
+            m->run(*t, z, 480);
+            if (k > 80) top = std::max(top, peak(z, 960));
+        }
+        return top;
+    };
+    float v = level([](auto&) {});
+    check(v > .5, "sidetone reaches the headphones", v);
+    v = level([](auto& t) { t.set(Ceiling, 0, -12); t.set(MicGain, 0, 24); });
+    check(v > .1 && v <= db(-12) + 1e-5, "sidetone obeys the safety ceiling", v);
+    v = level([](auto& t) { t.set(Mute, Mic, 1); });
+    check(v < 1e-4, "mic mute silences the sidetone", v);
+    v = level([](auto& t) { t.set(MasterMute, 0, 1); });
+    check(v < 1e-4, "master mute silences the sidetone", v);
+    v = level([](auto& t) { t.set(StreamerOn, 0, 1); t.set(StreamListen, 0, 1); });
+    check(v < 1e-4, "no double sidetone while listening to the stream", v);
+}
+
 int main() {
-    equalizer(); dynamics(); denoiser(); spatial(); clocks(); pauses(); mixer();
+    equalizer(); dynamics(); denoiser(); spatial(); clocks(); pauses(); mixer(); sidetone();
     printf("\n%d passed, %d failed\n", passed, failed);
     return failed ? 1 : 0;
 }

@@ -57,6 +57,9 @@ public:
     enum Phase { Stopped, Starting, Running, Failed };
     std::atomic<int> phase{Stopped};
     std::wstring key; // what this stream was opened for
+    // monitor() only
+    std::atomic<float> delayMs{0}; // first captured sample -> endpoint
+    std::atomic<int> gaps{0}, trims{0};
 
     Stream() : stop_(CreateEventW(nullptr, TRUE, FALSE, nullptr)), ready_(CreateEventW(nullptr, FALSE, FALSE, nullptr)) {}
     ~Stream() { stop(); CloseHandle(stop_); CloseHandle(ready_); }
@@ -74,6 +77,9 @@ public:
     }
     void render(const std::wstring& id, OnRender cb) {
         launch([=, this] { runRender(id, cb); });
+    }
+    void monitor(const std::wstring& in, const std::wstring& out, OnCapture cb) {
+        launch([=, this] { runMonitor(in, out, cb); });
     }
     void stop() {
         if (thread_.joinable()) {
@@ -159,6 +165,112 @@ private:
             if (FAILED(hr)) break;
         }
         client->Stop();
+    }
+
+    // Microphone to headphones on one thread. Each packet is written the moment it arrives, so the
+    // only buffers left are those of the Windows engine.
+    // shortcut: no resampling between the two clocks, add it when mic and headphones are separate devices.
+    void runMonitor(const std::wstring& inId, const std::wstring& outId, const OnCapture& cb) {
+        auto inDev = device(inId), outDev = device(outId);
+        if (!inDev || !outDev) return;
+        ComPtr<IAudioClient> in, out;
+        if (FAILED(inDev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &in))) return;
+        if (FAILED(outDev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &out))) return;
+        for (auto& c : {in, out}) {
+            ComPtr<IAudioClient2> c2;
+            AudioClientProperties raw{sizeof raw, FALSE, AudioCategory_Other, AUDCLNT_STREAMOPTIONS_RAW};
+            if (SUCCEEDED(c.As(&c2))) c2->SetClientProperties(&raw); // skips driver effects, optional
+        }
+        WAVEFORMATEX* mix = nullptr;
+        if (FAILED(out->GetMixFormat(&mix))) return;
+        const int ch = mix->nChannels;
+        const DWORD mask = mix->wFormatTag == WAVE_FORMAT_EXTENSIBLE ? reinterpret_cast<WAVEFORMATEXTENSIBLE*>(mix)->dwChannelMask : 0;
+        CoTaskMemFree(mix);
+        auto inFmt = floatFormat(2), outFmt = floatFormat(ch, mask);
+        const DWORD convert = AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+        if (FAILED(in->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | convert, 0, 0, &inFmt.Format, nullptr))) return;
+        if (FAILED(out->Initialize(AUDCLNT_SHAREMODE_SHARED, convert, 500000, 0, &outFmt.Format, nullptr))) return;
+        if (FAILED(in->SetEventHandle(ready_))) return;
+        ComPtr<IAudioCaptureClient> cap;
+        ComPtr<IAudioRenderClient> ren;
+        ComPtr<IAudioClock> clock;
+        UINT32 capacity = 0;
+        UINT64 rate = 0;
+        if (FAILED(in->GetService(IID_PPV_ARGS(&cap))) || FAILED(out->GetService(IID_PPV_ARGS(&ren))) ||
+            FAILED(out->GetService(IID_PPV_ARGS(&clock))) || FAILED(clock->GetFrequency(&rate)) || !rate ||
+            FAILED(out->GetBufferSize(&capacity)) || FAILED(out->Start()) || FAILED(in->Start())) return;
+        LARGE_INTEGER hz;
+        QueryPerformanceFrequency(&hz);
+        phase = Running;
+
+        float block[2 * dsp::MAX_BLOCK], last[2]{};
+        uint64_t written = 0;
+        UINT32 spare = UINT32_MAX; // least that was still queued when a packet arrived
+        int seen = 0, window = 2 * 48000, fade = 0;
+        const HANDLE waits[] = {stop_, ready_};
+        for (;;) {
+            const DWORD w = WaitForMultipleObjects(2, waits, FALSE, 1000);
+            if (w == WAIT_OBJECT_0 || w == WAIT_TIMEOUT) break;
+            UINT32 packet = 0;
+            HRESULT hr;
+            while (SUCCEEDED(hr = cap->GetNextPacketSize(&packet)) && packet) {
+                BYTE *data, *to;
+                UINT32 frames, pad;
+                DWORD f;
+                UINT64 capturedAt = 0;
+                if (FAILED(hr = cap->GetBuffer(&data, &frames, &f, nullptr, &capturedAt))) break;
+                if (FAILED(hr = out->GetCurrentPadding(&pad))) break;
+                spare = std::min(spare, pad);
+                seen += int(frames);
+                // A packet that stayed queued for the whole window is pure delay: skip one.
+                // The window grows each time, so a jittery device settles instead of crackling.
+                bool skip = pad + frames > capacity;
+                if (seen >= window) {
+                    if (spare >= frames) { skip = true; window = std::min(window * 2, 120 * 48000); }
+                    seen = 0; spare = UINT32_MAX;
+                }
+                if (!pad && written) {
+                    UINT64 pos = 0;
+                    if (SUCCEEDED(clock->GetPosition(&pos, nullptr)) && double(pos) / double(rate) * 48000 >= double(written)) gaps++;
+                }
+                if (skip) { trims++; fade = 96; }
+                else {
+                    if (FAILED(hr = ren->GetBuffer(frames, &to))) break;
+                    auto* dst = reinterpret_cast<float*>(to);
+                    std::memset(dst, 0, sizeof(float) * ch * frames);
+                    for (UINT32 at = 0; at < frames; at += dsp::MAX_BLOCK) {
+                        const int n = int(std::min<UINT32>(dsp::MAX_BLOCK, frames - at));
+                        if (f & AUDCLNT_BUFFERFLAGS_SILENT) std::memset(block, 0, sizeof(float) * 2 * n);
+                        else std::memcpy(block, reinterpret_cast<float*>(data) + at * 2, sizeof(float) * 2 * n);
+                        cb(block, n);
+                        for (int i = 0; i < n; i++) {
+                            float *s = block + 2 * i, *o = dst + (at + i) * ch;
+                            if (fade) {
+                                const float k = float(fade--) / 96;
+                                for (int c = 0; c < 2; c++) s[c] += (last[c] - s[c]) * k;
+                            } else { last[0] = s[0]; last[1] = s[1]; }
+                            if (ch == 1) o[0] = .5f * (s[0] + s[1]);
+                            else { o[0] = s[0]; o[1] = s[1]; }
+                        }
+                    }
+                    if (FAILED(hr = ren->ReleaseBuffer(frames, 0))) break;
+
+                    UINT64 pos = 0, posAt = 0;
+                    if (SUCCEEDED(clock->GetPosition(&pos, &posAt)) && pos) {
+                        LARGE_INTEGER t;
+                        QueryPerformanceCounter(&t);
+                        const double now = double(t.QuadPart) * 1000 / double(hz.QuadPart);
+                        const double played = double(pos) * 1000 / double(rate) + now - double(posAt) / 10000;
+                        delayMs = float(now - double(capturedAt) / 10000 + double(written) / 48 - played);
+                    }
+                    written += frames;
+                }
+                if (FAILED(hr = cap->ReleaseBuffer(frames))) break;
+            }
+            if (FAILED(hr)) break;
+        }
+        in->Stop();
+        out->Stop();
     }
 
     void runRender(const std::wstring& id, const OnRender& cb) {

@@ -56,7 +56,7 @@ Sayfalar: Kısayollar, Mikser, Ses, Mikrofon, Profiller. Profiller ve yıldızl�
 | Sanal mikrofon | VB-CABLE ile | otomatik bağlanır. Duyu'nun kendi sürücüsü yok |
 | Topluluk ayar mağazası | Yok | sunucu ister |
 | Oyun profilleri, kısayollar, tepsi | Var | |
-| Kendini duy | Var | mikrofon zincirinden sonra |
+| Kendini duy | Var | ayrı hızlı yol, gürültü azaltma hariç mikrofon zinciri |
 | Kulaklık düzeltme EQ'su | Var | kendini duyma dahil her şeye |
 
 ## Nasıl çalışıyor
@@ -66,7 +66,8 @@ uygulama ─► Windows oturumu (kanal sesi -80 dB) ─► kulaklık (duyulmaz)
                  │
                  └─ process loopback ─► +80 dB ─► EQ / uzamsal / mikser ─► limitleyici ─► kulaklık
 
-mikrofon ─► gürültü azaltma / kapı / EQ ─► kendini duy ──────────────────────────────────┘
+mikrofon ─┬─► gürültü azaltma / kapı / EQ ─► sanal mikrofon, yayın
+          └─► kapı / EQ (beklemesiz) ─► kendini duy ─► ayrı akış ─► kulaklık
 ```
 
 Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca oturumun kanal sesi değişir.
@@ -87,6 +88,10 @@ Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca o
 
 - **Gecikme:** uygulamadan motora 50–60 ms ölçüldü, çıkış tamponuyla toplam 65–75 ms. Bunun ne kadarının
   doğrudan çalmaya göre fazladan olduğu ölçülmedi (tahminen 50 ms). Rekabetçi oyunda o oyunu "Windows'a bırak" yapabilirsin.
+- **Kendini duy gecikmesi:** 10 ms periyotlu kablosuz bir USB kulaklıkta PC içinde 23–36 ms ölçüldü (Windows giriş ve çıkış saatlerinin açılıştaki hizasına göre).
+  Windows paylaşımlı modu bu sürücüde daha küçük periyot vermez. Kulaklığın radyo ve çevirici gecikmesi buna eklenir.
+  Beklememek için bu yolda gürültü azaltma ve darbe bastırma yoktur, Discord'a giden seste vardır.
+  Mikrofon ve kulaklık ayrı aygıtsa saat farkı arada bir 10 ms'lik atlama yapabilir (denenmedi).
 - WASAPI exclusive ve ASIO kullanan uygulamalar yakalanamaz.
 - Başka bir sesli uygulamayı başlatmış uygulama (ör. oyunu açan launcher) işlenmez, doğrudan çalar.
   Windows yakalamayı süreç ağacı olarak yaptığı için aksi halde ses iki kez duyulurdu. Oyunun kendisi işlenir.
@@ -104,6 +109,7 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1 -Test
 - `tests/routing_tests.cpp`: aygıt yönlendirme kuralları.
 - `tests/wheel_test.ps1`: sayfa kaydırmak seçim kutusunu değiştirmemeli.
 - `tests/e2e.cpp`: gerçek WASAPI testi, yalnızca kendi alt sürecine dokunur. Seçilen çıkışa -60 dBFS ton çalar.
+- `tests/sidetone_latency.cpp`: kendini duyma gecikmesi, gerçek aygıtta, sessiz.
 - `tests/latency.cpp`: uygulama yolu gecikme ölçümü.
 - `python -I tests/remote_test.py dist/Duyu.exe`: mobil API ve güvenlik testleri, yalnızca loopback.
 - `Duyu.exe --preview`: sesle ilgisiz arayüz önizlemesi.
