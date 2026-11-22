@@ -55,7 +55,7 @@ struct Activation : Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFla
 class Stream {
 public:
     enum Phase { Stopped, Starting, Running, Failed };
-    std::atomic<int> phase{Stopped}, periodFrames{480}, bufferedFrames{0};
+    std::atomic<int> phase{Stopped};
     std::wstring key; // what this stream was opened for
 
     Stream() : stop_(CreateEventW(nullptr, TRUE, FALSE, nullptr)), ready_(CreateEventW(nullptr, FALSE, FALSE, nullptr)) {}
@@ -66,11 +66,11 @@ public:
     using OnCapture = std::function<void(float*, int)>; // interleaved, at most MAX_BLOCK frames
     using OnRender = std::function<void(float*, int)>;  // stereo, at most MAX_BLOCK frames
 
-    void captureDevice(const std::wstring& id, bool raw, OnCapture cb) {
-        launch([=, this] { runCapture(id, 0, raw, cb); });
+    void captureDevice(const std::wstring& id, OnCapture cb) {
+        launch([=, this] { runCapture(id, 0, cb); });
     }
     void captureProcess(DWORD pid, OnCapture cb) {
-        launch([=, this] { runCapture(L"", pid, false, cb); });
+        launch([=, this] { runCapture(L"", pid, cb); });
     }
     void render(const std::wstring& id, OnRender cb) {
         launch([=, this] { runRender(id, cb); });
@@ -108,7 +108,7 @@ private:
         return d;
     }
 
-    void runCapture(const std::wstring& id, DWORD pid, bool raw, const OnCapture& cb) {
+    void runCapture(const std::wstring& id, DWORD pid, const OnCapture& cb) {
         ComPtr<IAudioClient> client;
         const int ch = pid ? dsp::SURROUND : 2;
         DWORD flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
@@ -130,15 +130,6 @@ private:
         } else {
             auto dev = device(id);
             if (!dev || FAILED(dev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &client))) return;
-            ComPtr<IAudioClient2> c2;
-            if (raw && SUCCEEDED(client.As(&c2))) {
-                // Skips vendor enhancements, the biggest source of microphone latency.
-                AudioClientProperties p{sizeof(AudioClientProperties), FALSE, AudioCategory_Other, AUDCLNT_STREAMOPTIONS_RAW};
-                c2->SetClientProperties(&p); // not every driver supports it; failure is fine
-            }
-            REFERENCE_TIME period = 100000;
-            client->GetDevicePeriod(&period, nullptr);
-            periodFrames = int(period * 48000 / 10000000);
             flags |= AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
         }
         auto fmt = floatFormat(ch);
@@ -202,13 +193,11 @@ private:
                     AUDCLNT_STREAMFLAGS_EVENTCALLBACK | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
                     0, 0, &fmt.Format, nullptr))) return;
         }
-        periodFrames = period;
         if (FAILED(client->SetEventHandle(ready_))) return;
         ComPtr<IAudioRenderClient> out;
         UINT32 capacity = 0;
         if (FAILED(client->GetBufferSize(&capacity)) || FAILED(client->GetService(IID_PPV_ARGS(&out)))) return;
         const UINT32 target = std::min<UINT32>(capacity, UINT32(period * 3 / 2)); // half a period of head-room
-        bufferedFrames = int(target);
 
         float stereo[2 * dsp::MAX_BLOCK];
         auto fill = [&]() -> bool {

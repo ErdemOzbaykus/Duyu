@@ -348,7 +348,7 @@ namespace Duyu
             On(() =>
             {
                 var list = M.Devices.Where(d => d.Input == input).ToList();
-                var auto = role == Role.OutMain || role == Role.InMic || role == Role.InTrans;
+                var auto = role == Role.OutMain || role == Role.InMic;
                 var picked = M.Effective(role);
                 var first = none;
                 if (auto && picked != null && string.IsNullOrEmpty(M.S.Devices[(int)role])) first += " · " + picked.Name;
@@ -375,7 +375,5 @@ namespace Duyu
         public static string Db(double v) { return (v > 0.049 ? "+" : "") + v.ToString("0.#") + " dB"; }
         public static string Hz(double v) { return v >= 1000 ? (v / 1000).ToString("0.##") + " kHz" : v.ToString("0") + " Hz"; }
         public static string Q(double v) { return v.ToString("0.00"); }
-        public static string Balance(double v) { return Math.Abs(v) < 0.02 ? "Orta" : (v < 0 ? "Sol " : "Sağ ") + Percent(Math.Abs(v)); }
-        public static string Tone(double v) { return Math.Abs(v) < 0.02 ? "Doğal" : (v < 0 ? "Yumuşak " : "Parlak ") + Percent(Math.Abs(v)); }
     }
 }

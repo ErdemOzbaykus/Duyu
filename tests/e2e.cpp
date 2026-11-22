@@ -96,7 +96,7 @@ int wmain(int argc, wchar_t** argv) {
     Sleep(700);
     meters(e, m, METERS);
     check(m[MMainRunning] == 0, "idle engine opens no output stream");
-    check(m[MMicRunning] == 0 && m[MTransRunning] == 0, "idle engine opens no microphone");
+    check(m[MMicRunning] == 0, "idle engine opens no microphone");
     check(volumeOf(app.dwProcessId) == 1.f, "idle engine changes no volume", volumeOf(app.dwProcessId));
 
     setParam(e, MixerOn, 0, 1);

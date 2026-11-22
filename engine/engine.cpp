@@ -69,15 +69,14 @@ public:
         case Boost: v = std::clamp(v, 0.f, 12.f); break;
         case Bass: case Voice: case Treble: v = std::clamp(v, -12.f, 12.f); break;
         case Preamp: v = std::clamp(v, -24.f, 12.f); break;
-        case MicGain: case TransGain: v = std::clamp(v, -24.f, 24.f); break;
-        case TransDuck: v = std::clamp(v, -36.f, 0.f); break;
+        case MicGain: v = std::clamp(v, -24.f, 24.f); break;
         case SmartTarget: v = std::clamp(v, -32.f, -10.f); break;
         case SmartAmount: case DenoiseAmount: case Immersion: case Distance: case NsAmount: case ImpactAmount:
-        case CompAmount: case TransDenoise: case TransOwnVoice: case TransWidth: v = std::clamp(v, 0.f, 1.f); break;
-        case ChatMix: case TransTone: case TransBalance: v = std::clamp(v, -1.f, 1.f); break;
+        case CompAmount: v = std::clamp(v, 0.f, 1.f); break;
+        case ChatMix: v = std::clamp(v, -1.f, 1.f); break;
         }
         state.set(id, i, v);
-        if (id == MixerOn || id == MicOn || id == TransOn || id == StreamerOn || id == TransRaw || id == SpatialTest) SetEvent(wake_);
+        if (id == MixerOn || id == MicOn || id == StreamerOn || id == SpatialTest) SetEvent(wake_);
     }
     void setBand(int ch, int i, float on, float type, float f, float gain, float q) {
         if (ch < 0 || ch >= CHANNELS || i < 0 || i >= dsp::Equalizer::N) return;
@@ -122,18 +121,17 @@ private:
     graph::Mixer mixer_;
     graph::Mixer::Io io_{};
     graph::MicChain micChain_;
-    graph::Transparency trans_;
-    dsp::Fifo micMix_{2, 480, 2400}, micOut_{2, 480, 2400}, transMix_{2, 96, 1440};
+    dsp::Fifo micMix_{2, 480, 2400}, micOut_{2, 480, 2400};
     dsp::Fifo streamOut_{2, 480, 2400};
     dsp::Fifo ownOut_[4]{{2, 480, 2400}, {2, 480, 2400}, {2, 480, 2400}, {2, 480, 2400}};
     float appBlock_[dsp::SURROUND * dsp::MAX_BLOCK]{};
-    float micGain_ = 0, transGain_ = 0;
+    float micGain_ = 0;
     std::atomic<bool> separate_[4]{};
 
     std::vector<float> recording_ = std::vector<float>(2 * 48000 * 4);
     std::atomic<int> test_{TestIdle}, testAt_{0};
 
-    wasapi::Stream main_, streamSink_, micSink_, ownSink_[4], micIn_, transIn_;
+    wasapi::Stream main_, streamSink_, micSink_, ownSink_[4], micIn_;
     std::map<wasapi::Stream*, ULONGLONG> retryAt_;
 
     // ---------------------------------------------------------- audio threads
@@ -182,7 +180,6 @@ private:
             }
         };
         read(micMix_, io.mic, micIn_.phase == wasapi::Stream::Running && state.on(MicOn), micGain_);
-        read(transMix_, io.trans, transIn_.phase == wasapi::Stream::Running && state.on(TransOn), transGain_);
 
         std::memset(io.playback, 0, sizeof(float) * 2 * n);
         if (test_.load() == TestPlay) {
@@ -206,11 +203,6 @@ private:
             if (take > 0) std::memcpy(&recording_[2 * at], a, sizeof(float) * 2 * take);
             if (take < n) { testAt_ = 0; test_ = TestPlay; } else testAt_ = at + take;
         }
-    }
-
-    void onTrans(float* a, int n) {
-        trans_.run(state, a, n);
-        transMix_.push(a, n);
     }
 
     // ---------------------------------------------------------- control thread
@@ -240,14 +232,13 @@ private:
         for (int r = 0; r < ROLES; r++) if (!want[r].empty() && !present(want[r], r >= InMic)) want[r].clear();
         if (want[OutMain].empty()) want[OutMain] = sys::pickOutput(devs);
         if (want[InMic].empty()) want[InMic] = sys::pickInput(devs);
-        if (want[InTrans].empty()) want[InTrans] = want[InMic];
         if (quit_) for (auto& w : want) w.clear();
 
-        const bool mixer = state.on(MixerOn), mic = state.on(MicOn), trans = state.on(TransOn);
+        const bool mixer = state.on(MixerOn), mic = state.on(MicOn);
         const bool testing = test_.load() != TestIdle;
         const auto& out = want[OutMain];
 
-        ensure(main_, mixer || mic || trans || testing || state.on(SpatialTest) ? out : L"", [&] {
+        ensure(main_, mixer || mic || testing || state.on(SpatialTest) ? out : L"", [&] {
             main_.render(out, [this](float* a, int n) { onMainRender(a, n); });
         });
         const auto stream = mixer && state.on(StreamerOn) && want[OutStream] != out ? want[OutStream] : L"";
@@ -266,28 +257,16 @@ private:
         const auto micId = mic || testing ? want[InMic] : L"";
         ensure(micIn_, micId, [&] {
             micMix_.clear = true;
-            micIn_.captureDevice(micId, false, [this](float* a, int n) { onMic(a, n); });
+            micIn_.captureDevice(micId, [this](float* a, int n) { onMic(a, n); });
         });
         const auto micOut = mic && want[OutMic] != out ? want[OutMic] : L"";
         ensure(micSink_, micOut, [&] {
             micOut_.clear = true;
             micSink_.render(micOut, [this](float* a, int n) { micOut_.pop(a, n); });
         });
-        const bool raw = state.on(TransRaw);
-        const auto tid = trans ? want[InTrans] : L"";
-        ensure(transIn_, tid.empty() ? L"" : tid + (raw ? L"|raw" : L"|fx"), [&] {
-            transMix_.clear = true;
-            transIn_.captureDevice(tid, raw, [this](float* a, int n) { onTrans(a, n); });
-        });
-
-        const bool transRunning = transIn_.phase == wasapi::Stream::Running;
         const bool mainRunning = main_.phase == wasapi::Stream::Running;
         state.meter[MMainRunning].store(mainRunning);
         state.meter[MMicRunning].store(micIn_.phase == wasapi::Stream::Running);
-        state.meter[MTransRunning].store(transRunning && mainRunning);
-        const int frames = transIn_.periodFrames + transMix_.latency + dsp::Limiter::LA + main_.bufferedFrames
-                         + (state.get(TransDenoise) > 0 ? dsp::Denoiser::N : 0);
-        state.meter[MTransLatencyMs].store(transRunning ? frames / 48.f : 0.f);
         state.meter[MTestState].store(float(test_.load()));
     }
 
@@ -431,7 +410,7 @@ private:
         bool mixerWasOn = false;
         while (!quit_) {
             const ULONGLONG now = GetTickCount64();
-            const bool busy = state.on(MixerOn) || state.on(MicOn) || state.on(TransOn) || test_.load() != TestIdle;
+            const bool busy = state.on(MixerOn) || state.on(MicOn) || test_.load() != TestIdle;
             if (now >= devicesAt) {
                 devs = sys::listDevices();
                 std::wstring text;

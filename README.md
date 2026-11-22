@@ -1,6 +1,6 @@
 # Duyu
 
-Windows için oyuncu ses mikseri + her kulaklığa transparency. Sürücü, hesap, internet ve yönetici izni gerektirmez.
+Windows için oyuncu ses mikseri. Sürücü, hesap, internet ve yönetici izni gerektirmez.
 
 ## Çalıştır
 
@@ -8,10 +8,9 @@ Windows için oyuncu ses mikseri + her kulaklığa transparency. Sürücü, hesa
 Gereken: Windows 11 x64 (veya Windows 10 build 20348+).
 
 1. **SteelSeries Sonar'ı ve benzeri mikserleri kapat**, Windows varsayılan çıkışını kulaklığın yap.
-2. **Transparency** sayfasında aç. Yalnızca bunu kullanacaksan ses motorunu açman gerekmez.
-3. **Mikser** sayfasında "Ses motoru"nu aç. Uygulamalar kanallara kendiliğinden dağılır.
+2. **Mikser** sayfasında "Ses motoru"nu aç. Uygulamalar kanallara kendiliğinden dağılır.
 
-Kısayollar: `Ctrl+Shift+F9` transparency, `F10` mod, `F11` mikrofon, `F12` tüm ses, `F7/F8` ChatMix (hepsi Ctrl+Shift ile).
+Kısayollar: `Ctrl+Shift+F11` mikrofon, `F12` tüm ses, `F7/F8` ChatMix (hepsi Ctrl+Shift ile).
 
 ## Sonar ile karşılaştırma
 
@@ -30,8 +29,8 @@ Kısayollar: `Ctrl+Shift+F9` transparency, `F10` mod, `F11` mikrofon, `F12` tüm
 | Sanal mikrofon | Yok | imzalı sürücü ister. Sanal kabloya çıkış verilebilir |
 | Topluluk ayar mağazası | Yok | sunucu ister |
 | Oyun profilleri, kısayollar, tepsi | Var | |
-| **Transparency** | **Var** | 3 mod, konuşma algılama, ötme koruması |
-| Kulaklık düzeltme EQ'su | Var | transparency dahil her şeye |
+| Kendini duy | Var | mikrofon zincirinden sonra |
+| Kulaklık düzeltme EQ'su | Var | kendini duyma dahil her şeye |
 
 ## Nasıl çalışıyor
 
@@ -40,7 +39,7 @@ uygulama ─► Windows oturumu (kanal sesi -80 dB) ─► kulaklık (duyulmaz)
                  │
                  └─ process loopback ─► +80 dB ─► EQ / uzamsal / mikser ─► limitleyici ─► kulaklık
 
-mikrofon ─► transparency zinciri ─► -6 dBFS limitleyici ──────────────────────────────────┘
+mikrofon ─► gürültü azaltma / kapı / EQ ─► kendini duy ──────────────────────────────────┘
 ```
 
 Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca oturumun kanal sesi değişir.
@@ -48,7 +47,7 @@ Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca o
 ### Güvenlik
 
 - Kısılmamış bir akış yakalanırsa blok atılır, 80 dB yüksek çalınmaz.
-- Transparency -6 dBFS'i, ana çıkış seçilen tavanı geçemez. NaN ve sonsuz değer kulağa ulaşmaz.
+- Ana çıkış seçilen tavanı geçemez. NaN ve sonsuz değer kulağa ulaşmaz.
 - Windows kanal sesini uygulama başına kalıcı saklar. Bu yüzden özgün değer kısmadan *önce* günlüğe yazılır
   (`%LOCALAPPDATA%\Duyu\restore.journal`).
 - Motor açıkken bir bekçi süreç çalışır. Duyu çökerse sesleri geri verir. Kısılmışken kapanmış bir uygulama
@@ -59,11 +58,8 @@ Windows mikserindeki sürgü oturumun *ana* sesidir, ona dokunulmaz. Yalnızca o
 
 ## Sınırlar
 
-- **Gecikme:** motordan geçen uygulama sesi doğrudan çalmaya göre yaklaşık 50 ms geç gelir. 46 ms'si Windows
-  process loopback'in payıdır. Rekabetçi oyunda o oyunu "Windows'a bırak" yapabilirsin.
-- **Transparency gecikmesi** kabloluda tahminen 30–40 ms. Kendi sesin hafif yankılı gelebilir ("Kendi sesimi kıs").
-  Bluetooth 100–250 ms ekler. Donanım transparency'si kadar doğal olamaz.
-- Transparency için **herhangi bir mikrofon** şarttır. Kulaklıkta yoksa webcam, USB veya dizüstü mikrofonu olur.
+- **Gecikme:** uygulamadan motora 50–60 ms ölçüldü, çıkış tamponuyla toplam 65–75 ms. Bunun ne kadarının
+  doğrudan çalmaya göre fazladan olduğu ölçülmedi (tahminen 50 ms). Rekabetçi oyunda o oyunu "Windows'a bırak" yapabilirsin.
 - WASAPI exclusive ve ASIO kullanan uygulamalar yakalanamaz.
 - Başka bir sesli uygulamayı başlatmış uygulama (ör. oyunu açan launcher) işlenmez, doğrudan çalar.
   Windows yakalamayı süreç ağacı olarak yaptığı için aksi halde ses iki kez duyulurdu. Oyunun kendisi işlenir.

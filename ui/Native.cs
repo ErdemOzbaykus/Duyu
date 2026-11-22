@@ -7,27 +7,25 @@ namespace Duyu
     // Mirrors engine/params.h. Append only.
     public enum P
     {
-        MixerOn, MicOn, TransOn, MasterVol, MasterMute, Ceiling,
+        MixerOn, MicOn, Retired2, MasterVol, MasterMute, Ceiling,
         Vol, Mute, StreamVol, StreamMute, Boost, Bass, Voice, Treble, EqOn, Preamp,
         SmartOn, SmartAmount, SmartTarget, DenoiseOn, DenoiseAmount,
         SpatialOn, Immersion, Distance, SpeakerAngle,
         ChatMixOn, ChatMix, StreamerOn, StreamListen, SpatialTest,
         MicGain, NsAmount, ImpactAmount, GateOn, GateAuto, GateThreshold,
         CompOn, CompAmount, StabilizerOn, Sidetone, MicTest,
-        TransGain, TransMode, TransTone, TransBalance, TransWidth, TransDenoise,
-        TransOwnVoice, TransAware, TransDuck, TransGuard, TransRaw,
         COUNT
     }
 
     public enum M
     {
         GameL, GameR, ChatL, ChatR, MediaL, MediaR, AuxL, AuxR, MicL, MicR,
-        OutL, OutR, StreamL, StreamR, Trans, TransLatencyMs, Speech, Feedback,
-        MicReduction, MixerRunning, MainRunning, MicRunning, TransRunning,
+        OutL, OutR, StreamL, StreamR,
+        MicReduction, MixerRunning, MainRunning, MicRunning,
         Captured, TestState, Speaker, GuardTrips, Pending, COUNT
     }
 
-    public enum Role { OutMain, OutStream, OutMic, OutGame, OutChat, OutMedia, OutAux, InMic, InTrans, COUNT }
+    public enum Role { OutMain, OutStream, OutMic, OutGame, OutChat, OutMedia, OutAux, InMic, COUNT }
 
     public static class Ch
     {

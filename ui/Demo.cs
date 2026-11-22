@@ -28,7 +28,7 @@ namespace Duyu
                 });
 
             Action<P, int, float> put = (p, i, v) => m.S.Values[(int)p][i] = v;
-            foreach (var p in new[] { P.MixerOn, P.TransOn, P.MicOn, P.StreamerOn, P.ChatMixOn, P.CompOn }) put(p, 0, 1);
+            foreach (var p in new[] { P.MixerOn, P.MicOn, P.StreamerOn, P.ChatMixOn, P.CompOn }) put(p, 0, 1);
             put(P.Vol, Ch.Chat, 0.72f); put(P.Vol, Ch.Media, 0.44f); put(P.StreamVol, Ch.Media, 0.2f);
             put(P.ChatMix, 0, 0.15f); put(P.SpatialOn, 0, 1); put(P.Sidetone, 0, 0.2f);
 
@@ -43,12 +43,10 @@ namespace Duyu
             _t += 0.033;
             Func<double, double, float> wave = (speed, size) => (float)(size * (0.55 + 0.45 * Math.Abs(Math.Sin(_t * speed + speed))));
             for (var i = 0; i < 14; i++) m.Meters[i] = wave(1.3 + i * 0.4, 0.5 / (1 + i % 5 * 0.4));
-            m.Meters[(int)M.Trans] = wave(2.2, 0.2);
-            m.Meters[(int)M.TransLatencyMs] = 31.3f;
             m.Meters[(int)M.MicReduction] = 3.5f;
             m.Meters[(int)M.Captured] = m.Apps.Count(a => a.State == AppState.Captured);
             m.Meters[(int)M.Speaker] = -1;
-            foreach (var x in new[] { M.MixerRunning, M.MainRunning, M.MicRunning, M.TransRunning }) m.Meters[(int)x] = 1;
+            foreach (var x in new[] { M.MixerRunning, M.MainRunning, M.MicRunning }) m.Meters[(int)x] = 1;
         }
     }
 }

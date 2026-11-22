@@ -26,7 +26,6 @@ struct State {
         const float angle[SURROUND] = {-30, 30, 0, 0, -145, 145, -90, 90};
         for (int i = 0; i < SURROUND; i++) set(SpeakerAngle, i, angle[i]);
         set(GateAuto, 0, 1); set(GateThreshold, 0, -45); set(CompAmount, 0, .4f);
-        set(TransGain, 0, 6); set(TransWidth, 0, 1); set(TransDuck, 0, -15); set(TransGuard, 0, 1); set(TransRaw, 0, 1);
     }
     void loadEq(Equalizer& eq, int c) const {
         for (int i = 0; i < Equalizer::N; i++) {
@@ -105,56 +104,11 @@ struct MicChain {
     }
 };
 
-// Microphone to ear. Stays sample-synchronous: the only added delay is the 1.3 ms limiter,
-// unless the user switches on ambient denoise (+10.7 ms).
-struct Transparency {
-    Biquad hp, presence, shelf, cut;
-    Denoiser denoise;
-    Compressor lift, own;
-    FeedbackGuard guard;
-    SpeechDetector speech;
-    Limiter limit;
-    int mode = -1;
-    float tone = 1e6f, fade = 0;
-
-    void configure(int m, float t) {
-        if (m == mode && t == tone) return;
-        mode = m; tone = t;
-        hp.c = Coef::make(HighPass, m == Conversation ? 180.f : 80.f, 0, .707f);
-        presence.c = Coef::make(Bell, 2600, m == Conversation ? 6.f : m == Awareness ? 3.f : 1.5f, .8f);
-        cut.c = Coef::make(HighShelf, 7500, m == Conversation ? -5.f : 0.f, .707f);
-        shelf.c = Coef::make(HighShelf, 1500, t * 8, .6f);
-    }
-    void run(State& s, float* a, int n) {
-        configure(int(s.get(TransMode)), s.get(TransTone));
-        const bool talking = s.on(TransAware) && speech.run(a, n);
-        s.meter[MSpeech].store(talking ? 1.f : 0.f);
-        hp.stereo(a, n);
-        if (s.get(TransDenoise) > 0) denoise.run(a, n, s.get(TransDenoise), 0);
-        presence.stereo(a, n); cut.stereo(a, n); shelf.stereo(a, n);
-        if (mode == Awareness) lift.run(a, n, -42, 2.5f, 12, 3, 160);
-        if (s.get(TransOwnVoice) > 0) own.run(a, n, -22 - 14 * s.get(TransOwnVoice), 8, 0, 2, 180);
-
-        const float g = db(s.get(TransGain)), bal = s.get(TransBalance), width = s.get(TransWidth), k = smooth(30);
-        const float gl = g * std::min(1.f, 1 - bal), gr = g * std::min(1.f, 1 + bal);
-        for (int i = 0; i < n; i++) {
-            fade += (1 - fade) * k; // soft start, so switching on never bangs
-            const float m = .5f * (a[2 * i] + a[2 * i + 1]), d = .5f * (a[2 * i] - a[2 * i + 1]) * width;
-            a[2 * i] = (m + d) * gl * fade; a[2 * i + 1] = (m - d) * gr * fade;
-        }
-        if (s.on(TransGuard)) guard.run(a, n);
-        limit.run(a, n, .5f); // -6 dBFS: the room can never be louder than this
-        s.meter[MTrans].store(std::max(peak(a, 2 * n), s.meter[MTrans].load() * .88f));
-        s.meter[MFeedback].store(float(guard.active()));
-    }
-};
-
 // Everything that happens on the main output clock.
 struct Mixer {
     struct Io {
         float app[4][SURROUND * MAX_BLOCK]; // in
         float mic[2 * MAX_BLOCK];           // in
-        float trans[2 * MAX_BLOCK];         // in
         float playback[2 * MAX_BLOCK];      // in: microphone test playback
         bool separate[4];                   // in: channel has its own output device
         float main[2 * MAX_BLOCK];          // out
@@ -165,7 +119,6 @@ struct Mixer {
     Ramp personal[4], streamer[5], side, master;
     Equalizer correction;
     Limiter mainLimit, streamLimit, ownLimit[4];
-    float duck = 1;
     uint32_t rng = 22222;
     uint64_t clock = 0;
 
@@ -183,9 +136,6 @@ struct Mixer {
         } else s.meter[MSpeaker].store(-1);
         clock += n;
 
-        const float duckTo = s.on(TransOn) && s.on(TransAware) && s.meter[MSpeech].load() > .5f ? db(s.get(TransDuck)) : 1.f;
-        duck += (duckTo - duck) * (1 - std::exp(-float(n) / SR / (duckTo < duck ? .08f : .5f)));
-
         std::memset(io.main, 0, sizeof(float) * 2 * n);
         std::memset(io.stream, 0, sizeof(float) * 2 * n);
         float work[2 * MAX_BLOCK], tmp[2 * MAX_BLOCK];
@@ -199,7 +149,6 @@ struct Mixer {
             float g = s.on(Mute, c) ? 0.f : s.get(Vol, c);
             if (c == Game) g *= std::min(1.f, 1 - mix);
             if (c == Chat) g *= std::min(1.f, 1 + mix);
-            else g *= duck;
             personal[c].stereo(tmp, n, g);
             if (io.separate[c]) {
                 for (int i = 0; i < 2 * n; i++) io.own[c][i] = tmp[i] * masterGain;
@@ -223,8 +172,7 @@ struct Mixer {
             for (int i = 0; i < 2 * n; i++) io.main[i] += tmp[i];
         }
         master.stereo(io.main, n, masterGain);
-        // Transparency bypasses master volume: turning music down must not deafen you.
-        for (int i = 0; i < 2 * n; i++) io.main[i] += io.trans[i] + io.playback[i];
+        for (int i = 0; i < 2 * n; i++) io.main[i] += io.playback[i];
         if (s.on(EqOn, Master)) {
             s.loadEq(correction, Master);
             correction.run(io.main, n);

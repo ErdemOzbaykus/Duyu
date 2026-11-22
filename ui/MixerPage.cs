@@ -36,7 +36,7 @@ namespace Duyu
             B.On(() => streamExtra.Visibility = M.On(P.StreamerOn) ? Visibility.Visible : Visibility.Collapsed);
 
             Add(new Columns().With(chatMix, streamer));
-            Add(Kit.Card("Uygulamalar", "Kanal seç ya da satırı kanalın üstüne sürükle. İşlenen ses yaklaşık 50 ms geç gelir, rekabetçi oyunda o oyun için “Windows'a bırak” seçebilirsin.", _apps));
+            Add(Kit.Card("Uygulamalar", "Kanal seç ya da satırı kanalın üstüne sürükle. İşlenen ses 65–75 ms'de kulağa varır, rekabetçi oyunda o oyun için “Windows'a bırak” seçebilirsin.", _apps));
 
             BuildApps();
             M.AppsChanged += BuildApps;

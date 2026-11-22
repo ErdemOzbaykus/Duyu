@@ -54,7 +54,9 @@ int wmain(int argc, wchar_t** argv) {
     auto device = (void (*)(void*, int, const wchar_t*))GetProcAddress(m, "duyu_set_device");
     auto meters = (void (*)(void*, float*, int))GetProcAddress(m, "duyu_meters");
 
-    void* e = create(tmp, pi.dwProcessId);
+    const std::wstring dir = std::wstring(tmp) + L"DuyuLatency_" + std::to_wstring(GetCurrentProcessId());
+    CreateDirectoryW(dir.c_str(), nullptr);
+    void* e = create(dir.c_str(), pi.dwProcessId);
     device(e, OutMain, id.c_str());
     set(e, MixerOn, 0, 1);
     Sleep(1500);
@@ -76,6 +78,8 @@ int wmain(int argc, wchar_t** argv) {
         }
     }
     destroy(e);
+    DeleteFileW((dir + L"\\restore.journal").c_str());
+    RemoveDirectoryW(dir.c_str());
     TerminateProcess(pi.hProcess, 0);
     std::sort(ms.begin(), ms.end());
     if (ms.empty()) { puts("no signal"); return 1; }

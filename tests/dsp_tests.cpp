@@ -130,28 +130,6 @@ static void spatial() {
     check(itd > .55 && itd < .75, "ITD at 90 degrees (ms)", itd);
 }
 
-static void transparency() {
-    { auto s = std::make_unique<graph::State>(); auto t = std::make_unique<graph::Transparency>();
-      s->set(TransGain, 0, 24); Buf b = noise(.5f, 48000); blocks(b, [&](float* a, int n) { t->run(*s, a, n); });
-      check(peak(b.data(), int(b.size())) <= .5001f, "room can never exceed -6 dBFS", peak(b.data(), int(b.size()))); }
-    { auto s = std::make_unique<graph::State>(); auto t = std::make_unique<graph::Transparency>();
-      s->set(TransGain, 0, 0); Buf b(9600); b[2000] = b[2001] = .1f; blocks(b, [&](float* a, int n) { t->run(*s, a, n); });
-      int at = 0; for (int i = 0; i < 4800; i++) if (std::fabs(b[2 * i]) > std::fabs(b[2 * at])) at = i;
-      check((at - 1000) / 48. < 1.6, "transparency DSP latency (ms)", (at - 1000) / 48.); }
-    for (float f : {600.f, 1870.f, 3300.f, 7100.f}) {
-        FeedbackGuard g; Buf b = tone(f, .25f, 96000); blocks(b, [&](float* a, int n) { g.run(a, n); });
-        check(dB(rms(b, 72000, 96000) / (.25 / std::sqrt(2.))) < -15, "howl notched (dB)", dB(rms(b, 72000, 96000) / (.25 / std::sqrt(2.))));
-    }
-    { FeedbackGuard g; Buf b = noise(.1f, 96000); blocks(b, [&](float* a, int n) { g.run(a, n); });
-      check(g.active() == 0, "broadband sound is not mistaken for howl", g.active()); }
-    { SpeechDetector d; Buf quiet = noise(.0005f, 96000); bool hit = false;
-      blocks(quiet, [&](float* a, int n) { hit |= d.run(a, n); });
-      check(!hit, "quiet room does not trigger awareness", hit);
-      Buf talk = tone(700, .05f, 48000); hit = false;
-      blocks(talk, [&](float* a, int n) { hit |= d.run(a, n); });
-      check(hit, "voice triggers awareness", hit); }
-}
-
 static void clocks() {
     for (int margin : {96, 480}) for (double drift : {-3e-4, 0., 3e-4}) {
         Fifo f(2, margin, 2880); float in[2 * 600]{}, out[2 * 480];
@@ -173,15 +151,6 @@ static void pauses() {
             for (int i = 0; i < 60; i++) f.pop(b, 480); // the app pauses
         }
         check(f.margin == 96, "60 pauses do not grow the latency", f.margin); }
-    {   Fifo f(2, 96, 1440); float b[2 * 480]{};
-        std::uniform_real_distribution<double> jitter(-1.5, 1.5);
-        double w = 0, r = 3; int wi = 0, ri = 0, late = 0;
-        while (ri < 30000) { // five minutes of two jittery 10 ms clocks
-            if (w <= r) { f.push(b, 480); w = ++wi * 10 + jitter(rng); }
-            else { if (!f.pop(b, 480) && ri > 3000) late++; r = 3 + ++ri * 10 + jitter(rng); }
-        }
-        check(late == 0, "transparency bridge: no dropouts under jitter", late);
-        check(f.latency.load() < 960, "transparency bridge fill under 20 ms (ms)", f.latency.load() / 48.); }
 }
 
 static void mixer() {
@@ -195,6 +164,14 @@ static void mixer() {
     }
     check(std::fabs(main - .1) < .001, "personal mix fader", main);
     check(std::fabs(stream - .05) < .001, "stream mix is independent", stream);
+
+    s->set(Sidetone, 0, .25f);
+    for (int b = 0; b < 100; b++) {
+        std::memset(io.get(), 0, sizeof *io);
+        for (float& v : io->mic) v = .2f;
+        m->run(*s, *io, 480); main = io->main[800];
+    }
+    check(std::fabs(main - .05) < .001, "sidetone reaches the headphones", main);
 
     for (int c = 0; c < 4; c++) {
         s->set(SpatialOn, c, 1); s->set(DenoiseOn, c, 1); s->set(SmartOn, c, 1); s->set(Boost, c, 6);
@@ -211,7 +188,7 @@ static void mixer() {
 }
 
 int main() {
-    equalizer(); dynamics(); denoiser(); spatial(); transparency(); clocks(); pauses(); mixer();
+    equalizer(); dynamics(); denoiser(); spatial(); clocks(); pauses(); mixer();
     printf("\n%d passed, %d failed\n", passed, failed);
     return failed ? 1 : 0;
 }

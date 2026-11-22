@@ -63,7 +63,7 @@ namespace Duyu
             Add(perChannel);
 
             var about = Kit.Card("Kulaklık düzeltmesi",
-                "Bu EQ kulaklığa giden her şeye, transparency dahil, en son uygulanır. Kulaklığının AutoEq “ParametricEQ.txt” dosyasını “Dosyadan” ile yükleyebilirsin.",
+                "Bu EQ kulaklığa giden her şeye, kendini duyma dahil, en son uygulanır. Kulaklığının AutoEq “ParametricEQ.txt” dosyasını “Dosyadan” ile yükleyebilirsin.",
                 B.Slider("Güvenlik tavanı", P.Ceiling, -24, -0.5, 0.5, Format.Db));
             B.On(() => about.Visibility = _ch == Ch.Master ? Visibility.Visible : Visibility.Collapsed);
             Add(about);

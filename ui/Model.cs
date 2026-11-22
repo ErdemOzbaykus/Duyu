@@ -33,7 +33,6 @@ namespace Duyu
         public bool CloseToTray { get; set; }
         public bool Resume { get; set; }
         public bool SeenMixerInfo { get; set; }
-        public bool SeenTransInfo { get; set; }
     }
 
     public sealed class Device
@@ -68,9 +67,9 @@ namespace Duyu
         };
 
         public static readonly string[] HotkeyNames =
-            { "Transparency aç / kapat", "Transparency modunu değiştir", "Mikrofonu sustur", "Tüm sesi sustur", "ChatMix oyuna", "ChatMix sohbete" };
+            { "Mikrofonu sustur", "Tüm sesi sustur", "ChatMix oyuna", "ChatMix sohbete" };
         private static readonly string[] HotkeyDefaults =
-            { "Ctrl+Shift+F9", "Ctrl+Shift+F10", "Ctrl+Shift+F11", "Ctrl+Shift+F12", "Ctrl+Shift+F7", "Ctrl+Shift+F8" };
+            { "Ctrl+Shift+F11", "Ctrl+Shift+F12", "Ctrl+Shift+F7", "Ctrl+Shift+F8" };
 
         private readonly string _dir, _file;
         private readonly DispatcherTimer _save = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
@@ -106,7 +105,6 @@ namespace Duyu
             _engine = Native.duyu_create(dir, sandboxed ? (uint)Process.GetCurrentProcess().Id : 0);
             if (_engine == IntPtr.Zero) throw new InvalidOperationException("Ses motoru başlatılamadı.");
 
-            Put(P.TransOn, 0, 0); // a microphone-to-ear path never opens by itself
             Put(P.SpatialTest, 0, 0);
             if (!S.Resume) { Put(P.MixerOn, 0, 0); Put(P.MicOn, 0, 0); }
             PushAll();
@@ -126,7 +124,6 @@ namespace Duyu
             new float[] { -30, 30, 0, 0, -145, 145, -90, 90 }.CopyTo(v[(int)P.SpeakerAngle], 0);
             one(P.MasterVol, 1); one(P.Ceiling, -1);
             one(P.NsAmount, 0.5f); one(P.GateAuto, 1); one(P.GateThreshold, -45); one(P.CompAmount, 0.4f);
-            one(P.TransGain, 6); one(P.TransWidth, 1); one(P.TransDuck, -15); one(P.TransGuard, 1); one(P.TransRaw, 1);
             return v;
         }
 
@@ -156,6 +153,9 @@ namespace Duyu
             s.Values = MergeValues(s.Values, d.Values);
             if (s.Bands == null || s.Bands.Length != Ch.Count || !s.Bands.All(Presets.Valid)) s.Bands = d.Bands;
             if (s.PresetNames == null || s.PresetNames.Length != Ch.Count) s.PresetNames = d.PresetNames;
+            // Files saved before transparency was removed: one more device role, two more hotkeys in front.
+            if (s.Devices != null && s.Devices.Length == d.Devices.Length + 1) s.Devices = s.Devices.Take(d.Devices.Length).ToArray();
+            if (s.Hotkeys != null && s.Hotkeys.Length == d.Hotkeys.Length + 2) s.Hotkeys = s.Hotkeys.Skip(2).ToArray();
             if (s.Devices == null || s.Devices.Length != (int)Role.COUNT) s.Devices = d.Devices;
             if (s.Hotkeys == null || s.Hotkeys.Length != HotkeyNames.Length) s.Hotkeys = d.Hotkeys;
             s.Assign = s.Assign ?? d.Assign;
@@ -220,7 +220,7 @@ namespace Duyu
         {
             var incoming = Sanitize(Json().Deserialize<Settings>(File.ReadAllText(path)));
             // An imported file must not be able to switch a microphone on.
-            foreach (var p in new[] { P.MixerOn, P.MicOn, P.TransOn, P.SpatialTest })
+            foreach (var p in new[] { P.MixerOn, P.MicOn, P.SpatialTest })
                 incoming.Values[(int)p][0] = S.Values[(int)p][0];
             S = incoming;
             PushAll();
@@ -464,10 +464,9 @@ namespace Duyu
         /// The device the engine uses for a role, including the automatic pick (see system.h).
         public Device Effective(Role role)
         {
-            var input = role == Role.InMic || role == Role.InTrans;
+            var input = role == Role.InMic;
             var hit = Devices.FirstOrDefault(d => d.Input == input && d.Id == S.Devices[(int)role]);
             if (hit != null) return hit;
-            if (role == Role.InTrans) return Effective(Role.InMic);
             if (role != Role.OutMain && role != Role.InMic) return null;
             return Devices.Where(d => d.Input == input).OrderByDescending(d => (d.Default ? 50 : 0) - (d.Virtual ? 100 : 0)
                 + (input ? 0 : d.Form == 3 || d.Form == 5 ? 30 : d.Form == 1 ? 20 : 0)).FirstOrDefault();

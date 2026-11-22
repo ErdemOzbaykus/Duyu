@@ -12,7 +12,7 @@ using System.Windows.Threading;
 
 [assembly: AssemblyTitle("Duyu")]
 [assembly: AssemblyProduct("Duyu")]
-[assembly: AssemblyDescription("Windows ses mikseri ve transparency")]
+[assembly: AssemblyDescription("Windows ses mikseri")]
 [assembly: AssemblyVersion("1.0.0.0")]
 
 namespace Duyu
@@ -138,7 +138,7 @@ namespace Duyu
                     ShowActivated = false, ShowInTaskbar = false
                 };
                 w.Show();
-                var names = new[] { "transparency", "mikser", "ses", "mikrofon", "ayarlar" };
+                var names = new[] { "mikser", "ses", "mikrofon", "ayarlar" };
                 for (var i = 0; i < names.Length; i++)
                 {
                     w.Navigate(i);
@@ -179,7 +179,7 @@ namespace Duyu
             {
                 var w = new MainWindow(model) { WindowStartupLocation = WindowStartupLocation.Manual, Left = -8000, ShowActivated = false, ShowInTaskbar = false };
                 w.Show();
-                for (var i = 0; i < 5; i++) { w.Navigate(i); Pump(400); }
+                for (var i = 0; i < 4; i++) { w.Navigate(i); Pump(400); }
                 w.Navigate(0);
 
                 var cpu = System.Diagnostics.Process.GetCurrentProcess();
@@ -193,7 +193,7 @@ namespace Duyu
                 var lines = new[]
                 {
                     "devices=" + model.Devices.Count,
-                    "main_stream=" + model.Meter(M.MainRunning) + " mic=" + model.Meter(M.MicRunning) + " trans=" + model.Meter(M.TransRunning),
+                    "main_stream=" + model.Meter(M.MainRunning) + " mic=" + model.Meter(M.MicRunning),
                     "auto_out=" + (model.Effective(Role.OutMain) == null ? "-" : model.Effective(Role.OutMain).Name),
                     "auto_mic=" + (model.Effective(Role.InMic) == null ? "-" : model.Effective(Role.InMic).Name),
                     "cpu_one_core_percent=" + percent.ToString("0.0"),

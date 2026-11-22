@@ -15,14 +15,14 @@ namespace Duyu
 {
     public sealed class MainWindow : Window
     {
-        private static readonly string[] NavNames = { "Transparency", "Mikser", "Ses", "Mikrofon", "Ayarlar" };
-        private static readonly string[] NavIcons = { "", "", "", "", "" };
+        private static readonly string[] NavNames = { "Mikser", "Ses", "Mikrofon", "Ayarlar" };
+        private static readonly string[] NavIcons = { "", "", "", "" };
 
         public readonly Model M;
 
-        private readonly Page[] _pages = new Page[5];
-        private readonly RadioButton[] _nav = new RadioButton[5];
-        private readonly TextBlock[] _navState = new TextBlock[5];
+        private readonly Page[] _pages = new Page[4];
+        private readonly RadioButton[] _nav = new RadioButton[4];
+        private readonly TextBlock[] _navState = new TextBlock[4];
         private readonly ContentControl _view = new ContentControl { Focusable = false };
         private readonly TextBlock _status = Kit.Text("", 13, "Muted", true);
         private readonly LevelMeter _out = new LevelMeter("Master", true);
@@ -140,10 +140,9 @@ namespace Duyu
         {
             switch (i)
             {
-                case 0: return new TransparencyPage(this);
-                case 1: return new MixerPage(this);
-                case 2: return new SoundPage(this);
-                case 3: return new MicPage(this);
+                case 0: return new MixerPage(this);
+                case 1: return new SoundPage(this);
+                case 2: return new MicPage(this);
                 default: return new SettingsPage(this);
             }
         }
@@ -162,9 +161,8 @@ namespace Duyu
         private void OnModelChanged()
         {
             if (_pages[_page] != null) _pages[_page].Refresh();
-            SetState(0, M.On(P.TransOn), "Accent");
-            SetState(1, M.On(P.MixerOn), "Good");
-            SetState(3, M.On(P.MicOn), "Good");
+            SetState(0, M.On(P.MixerOn), "Good");
+            SetState(2, M.On(P.MicOn), "Good");
         }
 
         private void SetState(int i, bool on, string color)
@@ -196,20 +194,6 @@ namespace Duyu
 
         // ------------------------------------------------------------ actions
 
-        public void ToggleTransparency()
-        {
-            if (!M.On(P.TransOn) && !M.S.SeenTransInfo && !M.Preview)
-            {
-                var output = M.Effective(Role.OutMain);
-                var text = "Mikrofonun odayı kulaklığına aktarır. Kulaklık takılı olsun ve sesi orta seviyeye al. Hoparlörden çalarsa öter."
-                         + (output != null ? "\n\nÇıkış: " + output.Name : "")
-                         + "\n\nSes bilgisayarından çıkmaz ve kaydedilmez.";
-                if (!Dialog.Confirm(this, "Transparency açılsın mı?", text, "Mikrofonu aç")) return;
-                M.S.SeenTransInfo = true;
-            }
-            M.Toggle(P.TransOn);
-        }
-
         public void SetMixer(bool on)
         {
             if (on && !M.S.SeenMixerInfo && !M.Preview)
@@ -228,12 +212,10 @@ namespace Duyu
         {
             switch (i)
             {
-                case 0: ToggleTransparency(); break;
-                case 1: M.Set(P.TransMode, ((int)M.Get(P.TransMode) + 1) % 3); break;
-                case 2: M.Toggle(P.Mute, Ch.Mic); break;
-                case 3: M.Toggle(P.MasterMute); break;
-                case 4: NudgeMix(-0.1f); break;
-                case 5: NudgeMix(0.1f); break;
+                case 0: M.Toggle(P.Mute, Ch.Mic); break;
+                case 1: M.Toggle(P.MasterMute); break;
+                case 2: NudgeMix(-0.1f); break;
+                case 3: NudgeMix(0.1f); break;
             }
         }
 
@@ -282,7 +264,7 @@ namespace Duyu
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
-            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key >= Key.D1 && e.Key <= Key.D5)
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key >= Key.D1 && e.Key <= Key.D4)
             {
                 Navigate(e.Key - Key.D1);
                 e.Handled = true;
@@ -294,11 +276,10 @@ namespace Duyu
             if (M.Preview || M.Sandboxed) return;
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("Duyu'yu aç", null, (s, e) => Reveal());
-            var trans = menu.Items.Add("Transparency", null, (s, e) => ToggleTransparency()) as Forms.ToolStripMenuItem;
             var mixer = menu.Items.Add("Ses motoru", null, (s, e) => SetMixer(!M.On(P.MixerOn))) as Forms.ToolStripMenuItem;
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("Çıkış", null, (s, e) => Quit());
-            menu.Opening += (s, e) => { trans.Checked = M.On(P.TransOn); mixer.Checked = M.On(P.MixerOn); };
+            menu.Opening += (s, e) => mixer.Checked = M.On(P.MixerOn);
 
             _tray = new Forms.NotifyIcon
             {

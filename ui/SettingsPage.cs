@@ -33,7 +33,7 @@ namespace Duyu
 
             var general = Kit.Card("Genel", null,
                 B.Switch("Windows ile başlat", "Tepside açılır.", () => M.StartWithWindows, v => M.StartWithWindows = v),
-                B.Switch("Son durumla aç", "Mikser ve mikrofon işleme. Transparency hiçbir zaman kendiliğinden açılmaz.",
+                B.Switch("Son durumla aç", "Mikser ve mikrofon işleme.",
                     () => M.S.Resume, v => { M.S.Resume = v; M.SaveNow(); }),
                 B.Switch("Kapatınca tepside çalış", null, () => M.S.CloseToTray, v => { M.S.CloseToTray = v; M.SaveNow(); }),
                 Kit.Wrap(Kit.Button("Dışa aktar", Export, null, ""), Kit.Button("İçe aktar", Import, null, "")).Margin(0, 12, 0, 0));
