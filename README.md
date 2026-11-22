@@ -8,7 +8,8 @@ Windows için oyuncu ses mikseri. Sürücü, hesap, internet ve yönetici izni g
 
 ## Çalıştır
 
-Kaynaktan önce derle (aşağıda "Derle ve test et"), sonra `dist\Duyu.exe`. Yanındaki `Duyu.Engine.dll` ile aynı klasörde kalmalı.
+[Releases](https://github.com/ErdemOzbaykus/Duyu/releases/latest) sayfasındaki zip'i aç ve `Duyu.exe`'yi çalıştır (imzasız olduğu için SmartScreen uyarabilir).
+Kaynaktan kullanacaksan önce derle (aşağıda "Derle ve test et"), sonra `dist\Duyu.exe`. Yanındaki `Duyu.Engine.dll` ile aynı klasörde kalmalı.
 Gereken: Windows 11 x64 (veya Windows 10 build 20348+).
 
 1. **SteelSeries Sonar'ı ve benzeri mikserleri kapat**, Windows varsayılan çıkışını kulaklığın yap.
@@ -106,6 +107,10 @@ engine/  C++20 motor: dsp.h, graph.h (sinyal akışı), wasapi.h, system.h, engi
 ui/      WPF (.NET Framework 4.8, Windows ile gelir)
 tests/
 ```
+
+## Lisans
+
+[MIT](LICENSE)
 
 ---
 
